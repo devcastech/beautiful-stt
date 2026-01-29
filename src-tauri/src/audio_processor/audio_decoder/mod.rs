@@ -21,7 +21,15 @@ pub fn decode(path: &str) -> Result<AudioData, Box<dyn std::error::Error>> {
 
     match extension.to_lowercase().as_str() {
         "opus" => decode_opus(path),
-        "wav" | "mp3" | "flac" | "ogg" | "m4a" => decode_symphonia(path),
+        "ogg" => {
+            match decode_opus(path) {
+                Ok(data) => Ok(data),
+                Err(_) => {
+                    decode_symphonia(path)
+                }
+            }
+        },
+        "wav" | "mp3" | "flac" | "m4a" => decode_symphonia(path),
         _ => Err(format!("Formato no soportado: {}", extension).into()),
     }
 }
