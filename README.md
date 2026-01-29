@@ -30,12 +30,16 @@ This is a problem when your audio contains:
 ### macOS
 1. Download the `.dmg` file from [Releases](../../releases)
 2. Open the file and drag the app to Applications
-3. First time opening: Right-click the app → Open → "Open anyway"
+3. Open Terminal and run:
+   ```bash
+   xattr -cr /Applications/beautiful\ speech\ to\ text.app
+   ```
+4. Now you can open the app normally
+
+> **Why is this needed?** macOS blocks apps that aren't signed with an Apple Developer certificate ($99/year). This is standard for open source software. The command above removes the quarantine flag that macOS adds to downloaded apps.
 
 ### Windows
-1. Download the `.exe` file from [Releases](../../releases)
-2. Run the installer
-3. If you see "Windows protected your PC": Click "More info" → "Run anyway"
+Coming soon
 
 ### Linux
 Coming soon
