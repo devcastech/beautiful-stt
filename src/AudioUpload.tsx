@@ -23,7 +23,7 @@ export const AudioProcessor = () => {
     try {
       const selected = await open({
         multiple: false,
-        filters: [{ name: 'Audio', extensions: ['mp3', 'wav'] }],
+        filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac'] }],
       });
 
       if (selected && typeof selected === 'string') {
