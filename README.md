@@ -67,3 +67,8 @@ Open source - MIT License
 ## Contributing
 
 Contributions are welcome! Feel free to open issues or submit pull requests.
+
+set -gx CXXFLAGS "-mmacosx-version-min=11.0 -std=c++17"
+set -gx CFLAGS "-mmacosx-version-min=11.0"
+set -gx MACOSX_DEPLOYMENT_TARGET 11.0
+set -gx CMAKE_OSX_DEPLOYMENT_TARGET 11.0
