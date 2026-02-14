@@ -1,12 +1,25 @@
+use std::sync::Arc;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter};
 mod audio_processor;
+
+#[derive(Clone, Serialize)]
+struct ProcessEvent {
+    step: String,
+    count: Option<u32>,
+}
+
 #[tauri::command]
 fn greet(name: &str) -> String {
     format!("Hello, {}! You've been greeted from Rust!", name)
 }
 
 #[tauri::command]
-async fn process_audio_file(file_path: String) -> Result<String, String> {
-    audio_processor::process_audio_file(&file_path)
+async fn process_audio_file(app: AppHandle, file_path: String, whisper_model: &str) -> Result<String, String> {
+    let emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync> = Arc::new(move |step: &str, count: Option<u32>| {
+        app.emit("process", ProcessEvent { step: step.into(), count }).unwrap();
+    });
+    audio_processor::process_audio_file(emit, &file_path, Some(whisper_model))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
