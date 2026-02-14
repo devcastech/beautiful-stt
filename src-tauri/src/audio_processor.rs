@@ -60,7 +60,7 @@ pub fn process_audio_file(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, fi
               "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
               whisper_model
           );
-          emit(&format!("aprovisionando modelo localmente {}", whisper_model), None);
+          emit(&format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
           let mut response = ureq::get(&model_url).call()?.into_reader();
           let mut file = File::create(&model_path)?;
           std::io::copy(&mut response, &mut file)?;
@@ -92,16 +92,14 @@ fn proccess(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, audio_path: &str
     let clean = clean_audio(audio.samples);
     // save_clean_audio(clean.clone(), audio.sample_rate, &output_path);
 
-    println!("Resampling to 16kHz...");
     let resampled = resample(&clean, audio.sample_rate, 16000);
 
-    println!("Transcribing...");
-    emit("Iniciando transcripción".into(), None);
-    let text = transcribe(emit, &resampled, whisper_model);
+    emit("iniciando transcripción".into(), None);
+    let text = transcribe(emit.clone(), &resampled, whisper_model);
     println!("\n=== Transcription ===\n{}", text);
 
-    let elapsed = total.elapsed();
-    println!("Elapsed time: {:?}", elapsed);
+    let elapsed = total.elapsed().as_secs();
+    emit(&format!("Proceso completado en {:?} segundos", elapsed), None);
     text
 }
 
@@ -173,7 +171,7 @@ fn resample(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
 }
 
 fn transcribe(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, samples: &[f32], whisper_model: &str) -> String {
-    let emit_clone = emit.clone();
+    emit("iniciando transcripción", None);
     let model_path = get_model_path(whisper_model);
     let mut ctx_params = WhisperContextParameters::default();
     ctx_params.use_gpu(true);
@@ -200,10 +198,9 @@ fn transcribe(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, samples: &[f32
     params.set_no_speech_thold(0.6);
     params.set_max_len(100);
 
-    emit("transcribing", None);
 
     params.set_progress_callback_safe(move |progress: i32| {
-        emit_clone("transcribing", Some(progress as u32));
+        emit("transcribiendo", Some(progress as u32));
     });
 
     let mut state = ctx.create_state().expect("Could not create state");
