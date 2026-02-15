@@ -9,6 +9,8 @@ use rubato::{Resampler, SincFixedIn, SincInterpolationType, SincInterpolationPar
 use indicatif::{ProgressBar, ProgressStyle};
 
 mod audio_decoder;
+pub type EmitType = Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
+
 const WHISPER_MODEL: &str = "ggml-large-v3.bin";
 
 // fn main() {
@@ -26,13 +28,13 @@ const WHISPER_MODEL: &str = "ggml-large-v3.bin";
 //     proccess(audio_path);
 // }
 
-pub fn process_audio_file(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, file_path: &str, whisper_model: Option<&str>) -> Result<String, String> {
+pub fn process_audio_file(emit: EmitType, file_path: &str, whisper_model: Option<&str>) -> Result<String, String> {
     whisper_rs::install_logging_hooks();
     println!("audio: {}", file_path);
     println!("model by default: {}", WHISPER_MODEL);
     let model_name = whisper_model.unwrap_or(WHISPER_MODEL);
     println!("selected model: {}", model_name);
-    emit(&format!("procesando audio con modelo {}", model_name), None);
+    emit("process", &format!("procesando audio con modelo {}", model_name), None);
     Ok(proccess(emit, file_path, model_name))
 }
 
@@ -53,14 +55,14 @@ pub fn process_audio_file(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, fi
           .join(whisper_model)
   }
 
-  fn ensure_model(emit: &dyn Fn(&str, Option<u32>), whisper_model: &str) -> Result<(), Box<dyn std::error::Error>> {
+  fn ensure_model(emit: &dyn Fn(&str, &str,Option<u32>), whisper_model: &str) -> Result<(), Box<dyn std::error::Error>> {
       let model_path = get_model_path(whisper_model);
       if !model_path.exists() {
           let model_url = format!(
               "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
               whisper_model
           );
-          emit(&format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
+          emit("process", &format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
           let mut response = ureq::get(&model_url).call()?.into_reader();
           let mut file = File::create(&model_path)?;
           std::io::copy(&mut response, &mut file)?;
@@ -68,11 +70,11 @@ pub fn process_audio_file(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, fi
       Ok(())
   }
 
-fn proccess(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, audio_path: &str, whisper_model: &str) -> String {
-    emit(&format!("validando modelo {}", whisper_model), None);
+fn proccess(emit: EmitType, audio_path: &str, whisper_model: &str) -> String {
+    emit("process", &format!("validando modelo {}", whisper_model), None);
     if let Err(e) = ensure_model(&*emit, whisper_model){
         println!("Failed to ensure model: {}", e);
-        emit("hubo un error descargando el modelo".into(), None);
+        emit("process", "hubo un error descargando el modelo".into(), None);
         return format!("failed to ensure model: {}", e);
     }
 
@@ -88,18 +90,18 @@ fn proccess(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, audio_path: &str
     println!("Sample rate: {}", audio.sample_rate);
     println!("Samples: {}", audio.samples.len());
 
-    emit("limpiando audio".into(), None);
+    emit("process", "limpiando audio".into(), None);
     let clean = clean_audio(audio.samples);
     // save_clean_audio(clean.clone(), audio.sample_rate, &output_path);
 
     let resampled = resample(&clean, audio.sample_rate, 16000);
 
-    emit("iniciando transcripción".into(), None);
+    emit("process", "iniciando transcripción".into(), None);
     let text = transcribe(emit.clone(), &resampled, whisper_model);
     println!("\n=== Transcription ===\n{}", text);
 
     let elapsed = total.elapsed().as_secs();
-    emit(&format!("Proceso completado en {:?} segundos", elapsed), None);
+    emit("process", &format!("Proceso completado en {:?} segundos", elapsed), None);
     text
 }
 
@@ -170,8 +172,7 @@ fn resample(samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
     waves_out.remove(0)
 }
 
-fn transcribe(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, samples: &[f32], whisper_model: &str) -> String {
-    emit("iniciando transcripción", None);
+fn transcribe(emit: EmitType, samples: &[f32], whisper_model: &str) -> String {
     let model_path = get_model_path(whisper_model);
     let mut ctx_params = WhisperContextParameters::default();
     ctx_params.use_gpu(true);
@@ -199,16 +200,25 @@ fn transcribe(emit: Arc<dyn Fn(&str, Option<u32>) + Send + Sync>, samples: &[f32
     params.set_max_len(100);
 
 
+    let emit_transcript = emit.clone();
     params.set_progress_callback_safe(move |progress: i32| {
-        emit("transcribiendo", Some(progress as u32));
+        emit_transcript("process", "transcribiendo", Some(progress as u32));
+    });
+    
+    let emit_segment = emit.clone();
+    params.set_segment_callback_safe(move |data:
+    whisper_rs::SegmentCallbackData| {
+        emit_segment("transcript_segment", &data.text, Some(data.segment as
+     u32));
     });
 
     let mut state = ctx.create_state().expect("Could not create state");
     state.full(params, samples).expect("Could not transcribe");
-
+    
     let mut text = String::new();
     for segment in state.as_iter() {
-        text.push_str(&segment.to_string());
+        let segment_text = segment.to_string();
+        text.push_str(&segment_text);
         text.push(' ');
     }
     text.trim().to_string()
