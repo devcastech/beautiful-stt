@@ -12,13 +12,7 @@
     {
       "identifier": "fs:scope",
       "allow": [
-        { "path": "$AUDIO/**" },
-        { "path": "$DOWNLOAD/**" },
-        { "path": "$DOCUMENT/**" },
-        { "path": "$HOME/**" },
-        { "path": "$RESOURCE/**" },
-        { "path": "/Users/**" },
-        { "path": "/Volumes/**" }
+        { "path": "**" }
       ]
     }
   ]

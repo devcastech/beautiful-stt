@@ -77,7 +77,6 @@ export const AudioProcessor = () => {
         const assetUrl = convertFileSrc(selected);
         const fileName = selected.split(/[\\/]/).pop() || 'Audio';
         setFileInfo({ name: fileName, url: assetUrl });
-        setResult('');
         setProcessStep(null);
       }
     } catch (error) {

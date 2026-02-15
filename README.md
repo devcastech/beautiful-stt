@@ -10,7 +10,7 @@ Commercial transcription services (Google, AWS, Azure, etc.) require you to:
 
 This is a problem when your audio contains:
 - Confidential business information
-- Government or legal documents
+- Government or legal information
 - Medical records
 - Personal conversations
 - Sensitive client data
@@ -23,7 +23,7 @@ This is a problem when your audio contains:
 - Supports multiple audio formats (MP3, WAV, FLAC, OGG, AAC)
 - Automatic noise reduction
 - GPU acceleration (Metal on macOS, CUDA on Windows/Linux)
-- Uses Whisper large-v3 model for high accuracy
+- Uses from tiny for less resources machine to large-v3 whisper models for high accuracy on more resources machine
 
 ## Installation
 
@@ -34,12 +34,17 @@ This is a problem when your audio contains:
    ```bash
    xattr -cr /Applications/beautiful\ speech\ to\ text.app
    ```
-4. Now you can open the app normally
+4. Now you can open the app normally and enjoy!
 
 > **Why is this needed?** macOS blocks apps that aren't signed with an Apple Developer certificate ($99/year). This is standard for open source software. The command above removes the quarantine flag that macOS adds to downloaded apps.
 
 ### Windows
-Coming soon
+1. Download the `.msi` file from [Releases](../../releases)
+2. Run the installer and follow the prompts
+3. if "Windows preogetió su PC" or similar message appears, click on "more information" and "Ejecutar de todas formas"
+4. Run next, next, next and finish. Enjoy!
+
+> **Why is this needed?** Windows blocks apps that aren't signed with an Apple Developer certificate. This is standard for open source software. The step above removes the quarantine flag that Windows adds to downloaded apps.
 
 ### Linux
 Coming soon
@@ -58,7 +63,7 @@ Coming soon
 
 ## First Run
 
-On first launch, the app will download the Whisper model (~3 GB). This only happens once.
+On first launch, the app will download the Whisper model (100MB ~3 GB depending on the model size). This only happens once for model.
 
 ## License
 

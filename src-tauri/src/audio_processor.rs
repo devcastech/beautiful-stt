@@ -204,7 +204,7 @@ fn transcribe(emit: EmitType, samples: &[f32], whisper_model: &str) -> String {
     params.set_progress_callback_safe(move |progress: i32| {
         emit_transcript("process", "transcribiendo", Some(progress as u32));
     });
-    
+
     let emit_segment = emit.clone();
     params.set_segment_callback_safe(move |data:
     whisper_rs::SegmentCallbackData| {
@@ -214,7 +214,7 @@ fn transcribe(emit: EmitType, samples: &[f32], whisper_model: &str) -> String {
 
     let mut state = ctx.create_state().expect("Could not create state");
     state.full(params, samples).expect("Could not transcribe");
-    
+
     let mut text = String::new();
     for segment in state.as_iter() {
         let segment_text = segment.to_string();
