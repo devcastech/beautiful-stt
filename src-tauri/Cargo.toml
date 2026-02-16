@@ -37,6 +37,7 @@ ureq = "2"
 hound = "3.5.1"
 nnnoiseless = "0.5.2"
 whisper-rs = "0.15"
+llama-cpp-2 = "0.1"
 rubato = "0.16"
 indicatif = "0.18.3"
 symphonia = { version = "0.5", features = ["mp3", "ogg", "wav", "flac", "aac"] }

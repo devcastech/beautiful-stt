@@ -14,9 +14,9 @@ export const DisplayTranscript = ({ text, isProcessing }: { text?: string, isPro
   return (
     <div
       ref={containerRef}
-      className={`rounded-xl bg-surface min-h-64 max-h-80 lg:min-h-90 lg:max-h-96 overflow-y-auto ${isProcessing ? 'animate-pulse' : ''}`}
+      className={`rounded-xl bg-surface min-h-64 max-h-80 lg:min-h-90 lg:max-h-96 overflow-y-auto `}
     >
-      <div className="flex justify-between items-center mb-2 bg-surface sticky top-0 p-4">
+      <div className={`flex justify-between items-center mb-2 bg-surface sticky top-0 p-4 ${isProcessing ? 'animate-pulse' : ''}`}>
         <p className="text-xs text-muted uppercase tracking-wider">{
           isProcessing ? "Transcribiendo..." : "Transcripción"
         }</p>

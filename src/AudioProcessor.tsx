@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { CloudUpload, WandSparkles, Music } from 'lucide-react';
+import { CloudUpload, WandSparkles, Music, Sparkles } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { models } from './lib/constants';
+import { llmModels, models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
+import { DisplaySummary } from './components/DisplaySummary';
 
 type ProcessEvent = {
   event: string;
@@ -20,6 +21,9 @@ export const AudioProcessor = () => {
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
   const [model, setModel] = useState<string>('ggml-small.bin');
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
+  const [summary, setSummary] = useState<string>('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
 
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
@@ -33,6 +37,10 @@ export const AudioProcessor = () => {
       }
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
+      }
+      
+      if (event.payload.event === 'summary_segment') {
+        setSummary((prev) => prev + event.payload.step);
       }
     });
     return () => {
@@ -62,6 +70,28 @@ export const AudioProcessor = () => {
     setResult(response as string);
     setIsProcessing(false);
     // setProcessStep(null);
+  };
+  
+  const handleSummarize = async () => {
+    if (!result) return;
+  
+    setIsSummarizing(true);
+    setSummary('');
+    setProcessStep(null);
+  
+    try {
+      const response = await invoke('summarize_transcript', {
+        transcript: result,
+        llmModel: llmModel,
+      });
+      console.log("RESUMEN", response)
+      setSummary(response as string);
+    } catch (error) {
+      console.error('Error al resumir:', error);
+      setSummary('Error al generar el resumen: ' + error);
+    } finally {
+      setIsSummarizing(false);
+    }
   };
 
   const handleSelectFile = async () => {
@@ -158,7 +188,45 @@ export const AudioProcessor = () => {
         <div className="w-full rounded-lg relative">
           <DisplayTranscript text={result} isProcessing={isProcessing} />
         </div>
+        {summary && (
+          <div className="w-full rounded-lg">
+            <DisplaySummary text={summary} isGenerating={isSummarizing} />
+          </div>
+        )}
       </div>
+      {result && !isProcessing && (
+        <>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted uppercase tracking-wider">
+              Modelo de resumen
+            </label>
+            <select
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              value={llmModel}
+              onChange={(e) => setLlmModel(e.target.value)}
+            >
+              {llmModels.map((m) => (
+                <option key={m.name} value={m.name}>
+                  {m.label} — {m.description}
+                </option>
+              ))}
+            </select>
+          </div>
+      
+          <button
+            onClick={handleSummarize}
+            disabled={isSummarizing}
+            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm text-white transition-all duration-300 ${
+              isSummarizing
+                ? 'bg-purple-600 cursor-not-allowed animate-pulse'
+                : 'bg-purple-600 hover:opacity-90 active:scale-[0.98]'
+            }`}
+          >
+            <Sparkles size={16} />
+            {isSummarizing ? 'Generando...' : 'Resumir'}
+          </button>
+        </>
+      )}
       <div className="w-full flex justify-center items-center gap-2 border-t border-surface pt-2">
         <p className="text-xs font-mono border border-surface text-muted p-1 rounded">
           {model.replace('.bin', '')}
