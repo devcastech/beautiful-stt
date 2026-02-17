@@ -42,10 +42,16 @@ fn ensure_model(
     }
 
     if !model_path.exists() {
-        let repo = if model_name.contains("Phi") {
+        let repo = if model_name.contains("phi-4") {
+            "microsoft/phi-4-gguf"
+        } else if model_name.contains("Phi") {
             "bartowski/Phi-3.5-mini-instruct-GGUF"
-        } else if model_name.contains("Llama") {
+        } else if model_name.contains("Llama-3.2-3B") {
             "bartowski/Llama-3.2-3B-Instruct-GGUF"
+        } else if model_name.contains("Meta-Llama-3.1-8B"){
+            "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+        } else if model_name.contains("gemma-2-9b-it") {
+            "bartowski/gemma-2-9b-it-GGUF"
         } else {
             "Qwen2.5-3B-Instruct-GGUF"
         };
@@ -181,20 +187,28 @@ fn build_summary_prompt(transcript: &str, model_name: &str) -> String {
 
 /// Formatea el prompt segun el template del modelo (Phi, Llama, Qwen)
 fn format_chat_prompt(system: &str, user: &str, assistant_prefix: &str, model_name: &str) -> String {
-    if model_name.contains("Phi") {
+    let model_lower = model_name.to_lowercase();
+    if model_lower.contains("phi") {
         format!(
             "<|system|>\n{}<|end|>\n\
             <|user|>\n{}<|end|>\n\
             <|assistant|>\n{}",
             system, user, assistant_prefix
         )
-    } else if model_name.contains("Llama") {
+    } else if model_lower.contains("llama") {
         format!(
             "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n\
             {}<|eot_id|>\n\
             <|start_header_id|>user<|end_header_id|>\n\n\
             {}<|eot_id|>\n\
             <|start_header_id|>assistant<|end_header_id|>\n\n{}",
+            system, user, assistant_prefix
+        )
+    } else if model_lower.contains("gemma") {
+        // Gemma 2 no tiene system turn, se concatena system+user en el turno user
+        format!(
+            "<start_of_turn>user\n{}\n\n{}<end_of_turn>\n\
+            <start_of_turn>model\n{}",
             system, user, assistant_prefix
         )
     } else {
@@ -257,6 +271,7 @@ fn run_inference(
     let mut n_cur = tokens.len() as i32;
 
     let mut sampler = LlamaSampler::chain_simple([
+        LlamaSampler::penalties(64, 1.1, 0.0, 0.0),
         LlamaSampler::temp(0.3),
         LlamaSampler::dist(42),
     ]);

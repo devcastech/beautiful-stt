@@ -30,23 +30,38 @@ export const models = [
 export const llmModels = [
   {
     name: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf',
-    label: 'Llama 3.2 3B (Q4)',
-    description: 'Meta · 2.02GB',
+    label: 'Llama 3.2 3B (Q4) - 2.02GB',
+    description: 'Ultra veloz. Ideal para hardware limitado y lógica muy básica.',
     default: true,
   },
   {
     name: 'Phi-3.5-mini-instruct-Q4_K_M.gguf',
-    label: 'Phi-3.5 Mini (Q4)',
-    description: 'Microsoft · 2.39GB',
+    label: 'Phi-3.5 Mini (Q4) - 2.39GB',
+    description: 'Compacto. Buen razonamiento para tareas de texto simples.',
   },
   {
     name: 'Llama-3.2-3B-Instruct-Q6_K_L.gguf',
-    label: 'Llama 3.2 3B (Q6)',
-    description: 'Meta · 2.74GB',
+    label: 'Llama 3.2 3B (Q6) - 2.74GB',
+    description: 'Equilibrado en 3B. Más estable que Q4 sin perder velocidad.',
   },
   {
     name: 'Llama-3.2-3B-Instruct-Q8_0.gguf',
-    label: 'Llama 3.2 3B (Q8)',
-    description: 'Meta · 3.42GB',
+    label: 'Llama 3.2 3B (Q8) - 3.42GB',
+    description: 'Máxima precisión 3B. Reduce alucinaciones en modelos pequeños.',
+  },
+  {
+    name: 'Meta-Llama-3.1-8B-Instruct-Q4_K_M.gguf',
+    label: 'Llama 3.1 8B (Q4) - 4.92GB',
+    description: 'Ganador. Gran lógica, entiende negaciones y limpia bien el audio.',
+  },
+  {
+    name: 'gemma-2-9b-it-Q4_K_L.gguf',
+    label: 'Gemma 2 9b (Q4) - 5.98GB',
+    description: 'Data specialist. El mejor extrayendo cifras y datos exactos.',
+  },
+  {
+    name: 'phi-4-Q4_0.gguf',
+    label: 'Phi-4 (Q4) - 8.38GB',
+    description: 'Elite. Razonamiento profesional y corrección fonética superior.',
   },
 ];
