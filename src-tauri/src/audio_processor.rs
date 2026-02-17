@@ -2,12 +2,15 @@ use std::{fs::File, time::Instant};
 use std::sync::Arc;
 
 use nnnoiseless::DenoiseState;
-use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy};
+use whisper_rs::{WhisperContext, WhisperContextParameters, FullParams, SamplingStrategy, WhisperVadParams};
 use rubato::{Resampler, SincFixedIn, SincInterpolationType, SincInterpolationParameters, WindowFunction};
 use indicatif::{ProgressBar, ProgressStyle};
 mod audio_decoder;
 
 pub type EmitType = Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
+
+const VAD_MODEL_NAME: &str = "ggml-silero-v6.2.0.bin";
+const VAD_MODEL_URL: &str = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
 
 pub struct AudioProcessor{
     emit: EmitType,
@@ -32,7 +35,16 @@ impl AudioProcessor{
             (self.emit)("process", "hubo un error descargando el modelo".into(), None);
             return format!("failed to ensure model: {}", e);
         }
-    
+
+        let vad_path = match self.ensure_vad_model(&*self.emit) {
+            Ok(path) => Some(path),
+            Err(e) => {
+                println!("VAD model not available, proceeding without VAD: {}", e);
+                (self.emit)("process", "VAD no disponible, continuando sin filtro de voz", None);
+                None
+            }
+        };
+
         let total = Instant::now();
         let audio = audio_decoder::decode(&self.file_path)
             .unwrap_or_else(|e| {
@@ -50,7 +62,7 @@ impl AudioProcessor{
         let resampled = self.resample(&clean, audio.sample_rate, 16000);
     
         (self.emit)("process", "iniciando transcripción".into(), None);
-        let text = self.transcribe(&resampled);
+        let text = self.transcribe(&resampled, vad_path.as_deref());
     
         let elapsed = total.elapsed().as_secs();
         (self.emit)("process", &format!("Proceso completado en {:?} segundos", elapsed), None);
@@ -105,7 +117,18 @@ impl AudioProcessor{
          }
          Ok(())
      }
-     
+
+     pub fn ensure_vad_model(&self, emit: &dyn Fn(&str, &str, Option<u32>)) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+         let vad_path = self.get_model_path(VAD_MODEL_NAME);
+         if !vad_path.exists() {
+             emit("process", "Descargando modelo VAD (solo una vez, ~885KB)", None);
+             let mut response = ureq::get(VAD_MODEL_URL).call()?.into_reader();
+             let mut file = File::create(&vad_path)?;
+             std::io::copy(&mut response, &mut file)?;
+         }
+         Ok(vad_path)
+     }
+
      pub fn resample(&self, samples: &[f32], from_rate: u32, to_rate: u32) -> Vec<f32> {
          let params = SincInterpolationParameters {
              sinc_len: 256,
@@ -129,7 +152,7 @@ impl AudioProcessor{
          waves_out.remove(0)
      }
      
-     pub fn transcribe(&self, samples: &[f32]) -> String {
+     pub fn transcribe(&self, samples: &[f32], vad_model_path: Option<&std::path::Path>) -> String {
          let model_path = self.get_model_path(&self.whisper_model);
          let mut ctx_params = WhisperContextParameters::default();
          ctx_params.use_gpu(true);
@@ -137,41 +160,62 @@ impl AudioProcessor{
              model_path.to_str().unwrap(),
              ctx_params
          ).expect("Failed to load the model");
-     
-         let mut params =
-         FullParams::new(SamplingStrategy::Greedy {
-         best_of: 1 });
+
+         // Beam Search: maneja mejor las repeticiones que Greedy
+         let mut params = FullParams::new(SamplingStrategy::BeamSearch {
+             beam_size: 5,
+             patience: 0.0,
+         });
+
          params.set_language(Some("es"));
          params.set_print_special(false);
          params.set_print_realtime(false);
          params.set_print_progress(false);
-         // Anti-looping
+
+         // Initial prompt: ancla el contexto y evita alucinaciones de YouTube/redes
+         params.set_initial_prompt(
+             "Transcripción profesional de audio. Contenido formal, sin publicidad, \
+              sin menciones a redes sociales ni suscripciones."
+         );
+
+         params.set_temperature(0.0);
          params.set_no_context(true);
-         params.set_single_segment(false);
          params.set_suppress_blank(true);
          params.set_suppress_nst(true);
-         params.set_temperature(0.0);
+         // no_speech_thold más agresivo: ante la menor duda, lo descarta
+         params.set_no_speech_thold(0.3);
+         // entropy_thold: mata segmentos con texto repetitivo/comprimible
          params.set_entropy_thold(2.4);
          params.set_logprob_thold(-1.0);
-         params.set_no_speech_thold(0.6);
          params.set_max_len(100);
-     
-     
+
+         // VAD: filtrar segmentos sin voz (música, ruido, silencio)
+         if let Some(vad_path) = vad_model_path {
+             params.set_vad_model_path(Some(vad_path.to_str().unwrap()));
+             let mut vad_params = WhisperVadParams::new();
+             vad_params.set_threshold(0.9);
+             vad_params.set_min_speech_duration(300);
+             vad_params.set_min_silence_duration(100);
+             vad_params.set_speech_pad(30);
+             params.set_vad_params(vad_params);
+             params.enable_vad(true);
+         }
+
          let emit_transcript = (self.emit).clone();
          params.set_progress_callback_safe(move |progress: i32| {
              emit_transcript("process", "transcribiendo", Some(progress as u32));
          });
-     
+
          let emit_segment = (self.emit).clone();
          params.set_segment_callback_safe(move |data:
          whisper_rs::SegmentCallbackData| {
              emit_segment("transcript_segment", &data.text, Some(data.segment as
           u32));
          });
-     
+
          let mut state = ctx.create_state().expect("Could not create state");
          state.full(params, samples).expect("Could not transcribe");
-     
+
          let mut text = String::new();
          for segment in state.as_iter() {
              let segment_text = segment.to_string();
