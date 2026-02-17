@@ -45,11 +45,6 @@ export const llmModels = [
     description: 'Meta · 2.74GB',
   },
   {
-    name: 'Phi-3.5-mini-instruct-Q6_K_L.gguf',
-    label: 'Phi-3.5 Mini (Q6)',
-    description: 'Microsoft · 3.18GB',
-  },
-  {
     name: 'Llama-3.2-3B-Instruct-Q8_0.gguf',
     label: 'Llama 3.2 3B (Q8)',
     description: 'Meta · 3.42GB',

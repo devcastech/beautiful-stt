@@ -19,7 +19,7 @@ export const AudioProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
-  const [model, setModel] = useState<string>('ggml-small.bin');
+  const [model, setModel] = useState<string>(models[1].name);
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
   const [summary, setSummary] = useState<string>('');
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -28,7 +28,7 @@ export const AudioProcessor = () => {
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
       console.log(event);
-      if (event.payload.event === 'process') {
+      if (['process', 'summary_progress'].includes(event.payload.event)) {
         setProcessStep({
           event: event.payload.event,
           step: event.payload.step,
@@ -38,7 +38,7 @@ export const AudioProcessor = () => {
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
       }
-      
+
       if (event.payload.event === 'summary_segment') {
         setSummary((prev) => prev + event.payload.step);
       }
@@ -61,6 +61,7 @@ export const AudioProcessor = () => {
 
   const processAudioFile = async () => {
     setIsProcessing(true);
+    setSummary('');
     setResult('');
     setProcessStep(null);
     const response = await invoke('process_audio_file', {
@@ -69,22 +70,21 @@ export const AudioProcessor = () => {
     });
     setResult(response as string);
     setIsProcessing(false);
-    // setProcessStep(null);
   };
-  
+
   const handleSummarize = async () => {
     if (!result) return;
-  
+
     setIsSummarizing(true);
     setSummary('');
     setProcessStep(null);
-  
+
     try {
       const response = await invoke('summarize_transcript', {
         transcript: result,
         llmModel: llmModel,
       });
-      console.log("RESUMEN", response)
+      console.log('RESUMEN', response);
       setSummary(response as string);
     } catch (error) {
       console.error('Error al resumir:', error);
@@ -197,9 +197,7 @@ export const AudioProcessor = () => {
       {result && !isProcessing && (
         <>
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-wider">
-              Modelo de resumen
-            </label>
+            <label className="text-xs text-muted uppercase tracking-wider">Modelo de resumen</label>
             <select
               className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
               value={llmModel}
@@ -212,7 +210,7 @@ export const AudioProcessor = () => {
               ))}
             </select>
           </div>
-      
+
           <button
             onClick={handleSummarize}
             disabled={isSummarizing}
