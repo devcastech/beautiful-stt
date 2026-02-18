@@ -39,13 +39,14 @@ async fn summarize_transcript(
     app: AppHandle,
     transcript: String,
     llm_model: Option<String>,
+    output_mode: Option<String>,
 ) -> Result<String, String> {
     let emit: Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync> =
         Arc::new(move |event: &str, step: &str, count: Option<u32>| {
             app.emit( "process", ProcessEvent { event: event.into(), step: step.into(), count, }, ).unwrap();
         });
 
-    summarizer::summarize_transcript(emit, &transcript, llm_model.as_deref())
+    summarizer::summarize_transcript(emit, &transcript, llm_model.as_deref(), output_mode.as_deref())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

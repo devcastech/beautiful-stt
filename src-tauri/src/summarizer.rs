@@ -92,6 +92,16 @@ const SYSTEM_PROMPT: &str = "Eres un Analista de Inteligencia Operativa. \
     - Marca datos inciertos con [?]\n\
     - Responde en español";
 
+const SYSTEM_PROMPT_ACTA: &str = "Eres un Secretario de Actas profesional. \
+    Tu misión es convertir transcripciones de sesiones y juntas en actas estructuradas.\n\
+    Reglas estrictas:\n\
+    - SOLO usa información explícita del texto\n\
+    - CORRECCIÓN CONTEXTUAL: Si detectas palabras mal transcritas (errores de fonética de Whisper), sustitúyelas por la palabra correcta según contexto\n\
+    - Identifica participantes por nombre cuando se mencionen\n\
+    - Distingue entre discusión, acuerdos y votaciones\n\
+    - Marca datos inciertos con [?]\n\
+    - Responde en español";
+
 /// Limite de caracteres para resumen directo (sin chunking)
 const MAX_DIRECT_CHARS: usize = 6000;
 /// Tamaño de cada chunk cuando el transcript excede MAX_DIRECT_CHARS
@@ -185,6 +195,94 @@ fn build_summary_prompt(transcript: &str, model_name: &str) -> String {
     format_chat_prompt(system, &instructions, "## 1. Propósito y Contexto\n", model_name)
 }
 
+// ===================================================
+// Prompts para modo "Acta"
+// ===================================================
+
+/// Prompt para extraer información de acta de un chunk individual
+fn build_chunk_extraction_acta_prompt(chunk: &str, chunk_num: usize, total_chunks: usize, model_name: &str) -> String {
+    let instructions = format!(
+        "Estás procesando la sección {} de {} de una transcripción larga de una sesión o junta.\n\n\
+        ### REGLAS DE ORO:\n\
+        1. CORRECCIÓN CONTEXTUAL: Si detectas palabras mal transcritas (errores fonéticos de Whisper), sustitúyelas por la palabra correcta según contexto.\n\
+        2. Identifica participantes mencionados por nombre.\n\
+        3. Distingue entre discusión, propuestas, acuerdos y votaciones.\n\
+        4. ATOMICIDAD: Un dato por cada viñeta.\n\n\
+        ### FRAGMENTO:\n{}\n\n\
+        ### EXTRACCIÓN:\n\
+        Genera una lista de bullet points con: participantes identificados, temas tratados, argumentos, propuestas, acuerdos, votaciones y compromisos. Nada más.",
+        chunk_num, total_chunks, chunk
+    );
+
+    let system = "Eres un Secretario de Actas profesional. \
+        Extraes información estructurada de fragmentos de transcripciones de sesiones y juntas.\n\
+        Reglas: SOLO información explícita, corrige errores de transcripción por contexto, sin relleno. Responde en español.";
+
+    format_chat_prompt(system, &instructions, "- ", model_name)
+}
+
+/// Prompt final de acta que recibe todas las ideas extraídas de los chunks
+fn build_final_acta_prompt(extracted_ideas: &str, model_name: &str) -> String {
+    let instructions = format!(
+        "A continuación tienes la información extraída de una transcripción larga de una sesión o junta, procesada por secciones.\n\
+        Usa TODA esta información para generar un acta estructurada.\n\n\
+        ### REGLAS DE ORO DE SALIDA:\n\
+        1. CORRECCIÓN CONTEXTUAL: Si detectas palabras mal transcritas (errores fonéticos de Whisper), sustitúyelas por la palabra correcta según contexto.\n\
+        2. Identifica participantes por nombre cuando se mencionen.\n\
+        3. ATOMICIDAD: Un dato por cada viñeta.\n\
+        4. OMISIÓN INTELIGENTE: Si no hay suficiente información para una sección, omítela por completo.\n\n\
+        ### INFORMACIÓN EXTRAÍDA:\n{}\n\n\
+        ### ESTRUCTURA DEL ACTA:\n\
+        Genera este formato sin preámbulos (omite secciones sin información suficiente):\n\n\
+        1. Datos de la Sesión\n\
+        (Fecha, lugar y participantes mencionados).\n\n\
+        2. Orden del Día / Temas Tratados\n\
+        (Lista de temas abordados durante la sesión).\n\n\
+        3. Discusión y Argumentos por Tema\n\
+        (Resumen de la discusión, posturas y argumentos por cada tema).\n\n\
+        4. Acuerdos y Votaciones\n\
+        (Decisiones tomadas, resultados de votaciones si los hay).\n\n\
+        5. Compromisos y Responsables\n\
+        (Tareas asignadas, responsables y plazos mencionados).\n\n\
+        6. Asuntos Pendientes\n\
+        (Temas que quedaron sin resolver o para próxima sesión).\n\n\
+        Genera SOLO el acta.",
+        extracted_ideas
+    );
+
+    format_chat_prompt(SYSTEM_PROMPT_ACTA, &instructions, "## 1. Datos de la Sesión\n", model_name)
+}
+
+/// Prompt directo de acta para transcripciones cortas
+fn build_acta_prompt(transcript: &str, model_name: &str) -> String {
+    let instructions = format!(
+        "### REGLAS DE ORO DE SALIDA:\n\
+        1. CORRECCIÓN CONTEXTUAL: Si detectas palabras mal transcritas (errores fonéticos de Whisper), sustitúyelas por la palabra correcta según contexto.\n\
+        2. Identifica participantes por nombre cuando se mencionen.\n\
+        3. ATOMICIDAD: Un dato por cada viñeta.\n\
+        4. OMISIÓN INTELIGENTE: Si no hay suficiente información para una sección, omítela por completo.\n\n\
+        ### TRANSCRIPCIÓN A PROCESAR:\n{}\n\n\
+        ### ESTRUCTURA DEL ACTA:\n\
+        Genera este formato sin preámbulos (omite secciones sin información suficiente):\n\n\
+        1. Datos de la Sesión\n\
+        (Fecha, lugar y participantes mencionados).\n\n\
+        2. Orden del Día / Temas Tratados\n\
+        (Lista de temas abordados durante la sesión).\n\n\
+        3. Discusión y Argumentos por Tema\n\
+        (Resumen de la discusión, posturas y argumentos por cada tema).\n\n\
+        4. Acuerdos y Votaciones\n\
+        (Decisiones tomadas, resultados de votaciones si los hay).\n\n\
+        5. Compromisos y Responsables\n\
+        (Tareas asignadas, responsables y plazos mencionados).\n\n\
+        6. Asuntos Pendientes\n\
+        (Temas que quedaron sin resolver o para próxima sesión).\n\n\
+        Genera SOLO el acta.",
+        transcript
+    );
+
+    format_chat_prompt(SYSTEM_PROMPT_ACTA, &instructions, "## 1. Datos de la Sesión\n", model_name)
+}
+
 /// Formatea el prompt segun el template del modelo (Phi, Llama, Qwen)
 fn format_chat_prompt(system: &str, user: &str, assistant_prefix: &str, model_name: &str) -> String {
     let model_lower = model_name.to_lowercase();
@@ -276,6 +374,9 @@ fn run_inference(
         LlamaSampler::dist(42),
     ]);
 
+    // Buffer para acumular bytes de tokens que pueden ser UTF-8 parcial
+    let mut byte_buf: Vec<u8> = Vec::new();
+
     for i in 0..max_tokens {
         let new_token = sampler.sample(&ctx, batch.n_tokens() - 1);
 
@@ -283,17 +384,29 @@ fn run_inference(
             break;
         }
 
-        let piece = model
-            .token_to_str(new_token, Special::Tokenize)
+        let token_bytes = model
+            .token_to_bytes(new_token, Special::Tokenize)
             .map_err(|e| format!("Error decodificando token: {}", e))?;
 
-        output.push_str(&piece);
+        byte_buf.extend_from_slice(&token_bytes);
 
-        if stream_to_frontend {
-            emit("summary_segment", &piece, None);
-            if i % 10 == 0 {
-                let progress = ((i as f32 / max_tokens as f32) * 100.0) as u32;
-                emit("summary_progress", "Generando resumen", Some(progress));
+        // Intentar convertir el buffer acumulado a UTF-8
+        match std::str::from_utf8(&byte_buf) {
+            Ok(valid_str) => {
+                output.push_str(valid_str);
+
+                if stream_to_frontend {
+                    emit("summary_segment", valid_str, None);
+                    if i % 10 == 0 {
+                        let progress = ((i as f32 / max_tokens as f32) * 100.0) as u32;
+                        emit("summary_progress", "Generando resumen", Some(progress));
+                    }
+                }
+
+                byte_buf.clear();
+            }
+            Err(_) => {
+                // UTF-8 incompleto, seguir acumulando bytes del siguiente token
             }
         }
 
@@ -336,8 +449,12 @@ pub fn summarize_transcript(
     emit: EmitType,
     transcript: &str,
     llm_model: Option<&str>,
+    output_mode: Option<&str>,
 ) -> Result<String, String> {
     let model_name = llm_model.unwrap_or(DEFAULT_LLM_MODEL);
+    let is_acta = output_mode.unwrap_or("summary") == "acta";
+
+    let mode_label = if is_acta { "acta" } else { "resumen" };
 
     // 1. Descargar modelo si no existe
     emit("summary_progress", &format!("Preparando modelo {}", model_name), None);
@@ -358,14 +475,18 @@ pub fn summarize_transcript(
 
     // 3. Decidir estrategia segun tamaño del transcript
     if transcript.len() <= MAX_DIRECT_CHARS {
-        // --- Resumen directo (transcript corto) ---
-        let prompt = build_summary_prompt(transcript, model_name);
-        emit("summary_progress", "Generando resumen", Some(0));
+        // --- Directo (transcript corto) ---
+        let prompt = if is_acta {
+            build_acta_prompt(transcript, model_name)
+        } else {
+            build_summary_prompt(transcript, model_name)
+        };
+        emit("summary_progress", &format!("Generando {}", mode_label), Some(0));
         let summary = run_inference(&model, &backend, &prompt, 500, &*emit, true)?;
-        emit("summary_progress", "Resumen completado", Some(100));
+        emit("summary_progress", &format!("{} completado", if is_acta { "Acta" } else { "Resumen" }), Some(100));
         Ok(summary)
     } else {
-        // --- Chunked: extraer ideas por sección, luego resumen final ---
+        // --- Chunked: extraer ideas por sección, luego resultado final ---
         let chunks = split_into_chunks(transcript, CHUNK_SIZE);
         let total_chunks = chunks.len();
         let mut all_ideas = String::new();
@@ -380,22 +501,30 @@ pub fn summarize_transcript(
             let chunk_num = idx + 1;
             emit(
                 "summary_progress",
-                &format!("Extrayendo ideas: sección {}/{}", chunk_num, total_chunks),
+                &format!("Extrayendo información: sección {}/{}", chunk_num, total_chunks),
                 Some(((idx as f32 / total_chunks as f32) * 70.0) as u32),
             );
 
-            let extraction_prompt = build_chunk_extraction_prompt(chunk, chunk_num, total_chunks, model_name);
+            let extraction_prompt = if is_acta {
+                build_chunk_extraction_acta_prompt(chunk, chunk_num, total_chunks, model_name)
+            } else {
+                build_chunk_extraction_prompt(chunk, chunk_num, total_chunks, model_name)
+            };
             let ideas = run_inference(&model, &backend, &extraction_prompt, 300, &*emit, false)?;
 
             all_ideas.push_str(&format!("\n### Sección {}\n{}\n", chunk_num, ideas));
         }
 
-        // Pase final: resumen consolidado con todas las ideas
-        emit("summary_progress", "Generando resumen final consolidado...", Some(75));
-        let final_prompt = build_final_summary_prompt(&all_ideas, model_name);
+        // Pase final: consolidado con todas las ideas
+        emit("summary_progress", &format!("Generando {} final consolidado...", mode_label), Some(75));
+        let final_prompt = if is_acta {
+            build_final_acta_prompt(&all_ideas, model_name)
+        } else {
+            build_final_summary_prompt(&all_ideas, model_name)
+        };
         let summary = run_inference(&model, &backend, &final_prompt, 500, &*emit, true)?;
 
-        emit("summary_progress", "Resumen completado", Some(100));
+        emit("summary_progress", &format!("{} completado", if is_acta { "Acta" } else { "Resumen" }), Some(100));
         Ok(summary)
     }
 }

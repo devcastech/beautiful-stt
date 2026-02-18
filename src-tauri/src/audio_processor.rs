@@ -183,11 +183,12 @@ impl AudioProcessor{
          params.set_suppress_blank(true);
          params.set_suppress_nst(true);
          // no_speech_thold más agresivo: ante la menor duda, lo descarta
-         params.set_no_speech_thold(0.3);
-         // entropy_thold: mata segmentos con texto repetitivo/comprimible
-         params.set_entropy_thold(2.4);
-         params.set_logprob_thold(-1.0);
-         params.set_max_len(100);
+         params.set_no_speech_thold(0.2);
+         // entropy_thold: mata segmentos con texto repetitivo/comprimible (más bajo = más agresivo)
+         params.set_entropy_thold(2.0);
+         params.set_logprob_thold(-0.5);
+         // Segmentos más cortos = menos espacio para que se desarrolle un loop
+         params.set_max_len(50);
 
          // VAD: filtrar segmentos sin voz (música, ruido, silencio)
          if let Some(vad_path) = vad_model_path {

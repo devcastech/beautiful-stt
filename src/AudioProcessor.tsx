@@ -24,6 +24,7 @@ export const AudioProcessor = () => {
   const [summary, setSummary] = useState<string>('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
+  const [outputMode, setOutputMode] = useState<'summary' | 'acta'>('summary');
 
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
@@ -83,6 +84,7 @@ export const AudioProcessor = () => {
       const response = await invoke('summarize_transcript', {
         transcript: result,
         llmModel: llmModel,
+        outputMode: outputMode,
       });
       console.log('RESUMEN', response);
       setSummary(response as string);
@@ -211,6 +213,18 @@ export const AudioProcessor = () => {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs text-muted uppercase tracking-wider">Tipo de salida</label>
+            <select
+              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              value={outputMode}
+              onChange={(e) => setOutputMode(e.target.value as 'summary' | 'acta')}
+            >
+              <option value="summary">Resumen — Manual de consulta rápida</option>
+              <option value="acta">Acta — Minuta de sesión o junta</option>
+            </select>
+          </div>
+
           <button
             onClick={handleSummarize}
             disabled={isSummarizing}
@@ -221,7 +235,7 @@ export const AudioProcessor = () => {
             }`}
           >
             <Sparkles size={16} />
-            {isSummarizing ? 'Generando...' : 'Resumir'}
+            {isSummarizing ? 'Generando...' : outputMode === 'acta' ? 'Generar Acta' : 'Resumir'}
           </button>
         </>
       )}
