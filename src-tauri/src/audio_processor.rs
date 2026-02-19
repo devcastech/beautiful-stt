@@ -161,68 +161,109 @@ impl AudioProcessor{
              ctx_params
          ).expect("Failed to load the model");
 
-         // Beam Search: maneja mejor las repeticiones que Greedy
-         let mut params = FullParams::new(SamplingStrategy::BeamSearch {
-             beam_size: 5,
-             patience: 0.0,
-         });
-
-         params.set_language(Some("es"));
-         params.set_print_special(false);
-         params.set_print_realtime(false);
-         params.set_print_progress(false);
-
-         // Initial prompt: ancla el contexto y evita alucinaciones de YouTube/redes
-         params.set_initial_prompt(
-             "Transcripción profesional de audio. Contenido formal, sin publicidad, \
-              sin menciones a redes sociales ni suscripciones."
-         );
-
-         params.set_temperature(0.0);
-         params.set_no_context(true);
-         params.set_suppress_blank(true);
-         params.set_suppress_nst(true);
-         // no_speech_thold más agresivo: ante la menor duda, lo descarta
-         params.set_no_speech_thold(0.2);
-         // entropy_thold: mata segmentos con texto repetitivo/comprimible (más bajo = más agresivo)
-         params.set_entropy_thold(2.0);
-         params.set_logprob_thold(-0.5);
-         // Segmentos más cortos = menos espacio para que se desarrolle un loop
-         params.set_max_len(50);
-
-         // VAD: filtrar segmentos sin voz (música, ruido, silencio)
-         if let Some(vad_path) = vad_model_path {
-             params.set_vad_model_path(Some(vad_path.to_str().unwrap()));
-             let mut vad_params = WhisperVadParams::new();
-             vad_params.set_threshold(0.9);
-             vad_params.set_min_speech_duration(300);
-             vad_params.set_min_silence_duration(100);
-             vad_params.set_speech_pad(30);
-             params.set_vad_params(vad_params);
-             params.enable_vad(true);
-         }
-
-         let emit_transcript = (self.emit).clone();
-         params.set_progress_callback_safe(move |progress: i32| {
-             emit_transcript("process", "transcribiendo", Some(progress as u32));
-         });
-
-         let emit_segment = (self.emit).clone();
-         params.set_segment_callback_safe(move |data:
-         whisper_rs::SegmentCallbackData| {
-             emit_segment("transcript_segment", &data.text, Some(data.segment as
-          u32));
-         });
-
          let mut state = ctx.create_state().expect("Could not create state");
-         state.full(params, samples).expect("Could not transcribe");
 
-         let mut text = String::new();
-         for segment in state.as_iter() {
-             let segment_text = segment.to_string();
-             text.push_str(&segment_text);
-             text.push(' ');
+         // Procesar en chunks de 30s independientes.
+         // Cada chunk tiene contexto limpio: un loop en el himno no contamina el debate siguiente.
+         const CHUNK_SAMPLES: usize = 30 * 16000;
+         let chunks: Vec<&[f32]> = samples.chunks(CHUNK_SAMPLES).collect();
+         let total_chunks = chunks.len();
+         let mut full_text = String::new();
+
+         for (idx, chunk) in chunks.iter().enumerate() {
+             // FullParams es consumido por state.full(), se reconstruye por chunk
+             let mut params = FullParams::new(SamplingStrategy::BeamSearch {
+                 beam_size: 5,
+                 patience: 0.0,
+             });
+
+             params.set_language(Some("es"));
+             params.set_print_special(false);
+             params.set_print_realtime(false);
+             params.set_print_progress(false);
+             params.set_initial_prompt(
+                 "Transcripción profesional de audio. Contenido formal, sin publicidad, \
+                  sin menciones a redes sociales ni suscripciones."
+             );
+             params.set_temperature(0.0);
+             params.set_no_context(true);
+             params.set_suppress_blank(true);
+             params.set_suppress_nst(true);
+             params.set_no_speech_thold(0.2);
+             params.set_entropy_thold(2.0);
+             params.set_logprob_thold(-0.5);
+             params.set_max_len(50);
+
+             if let Some(vad_path) = vad_model_path {
+                 params.set_vad_model_path(Some(vad_path.to_str().unwrap()));
+                 let mut vad_params = WhisperVadParams::new();
+                 vad_params.set_threshold(0.9);
+                 vad_params.set_min_speech_duration(300);
+                 vad_params.set_min_silence_duration(100);
+                 vad_params.set_speech_pad(30);
+                 params.set_vad_params(vad_params);
+                 params.enable_vad(true);
+             }
+
+             let emit_progress = (self.emit).clone();
+             params.set_progress_callback_safe(move |progress: i32| {
+                 let overall = ((idx as f32 + progress as f32 / 100.0) / total_chunks as f32 * 100.0) as u32;
+                 emit_progress("process", "transcribiendo", Some(overall));
+             });
+
+             let emit_segment = (self.emit).clone();
+             params.set_segment_callback_safe(move |data: whisper_rs::SegmentCallbackData| {
+                 emit_segment("transcript_segment", &data.text, Some(data.segment as u32));
+             });
+
+             (self.emit)("process", &format!("transcribiendo segmento {}/{}", idx + 1, total_chunks), None);
+             state.full(params, chunk).expect("Could not transcribe chunk");
+
+             let mut chunk_text = String::new();
+             for segment in state.as_iter() {
+                 chunk_text.push_str(&segment.to_string());
+                 chunk_text.push(' ');
+             }
+             let chunk_text = chunk_text.trim().to_string();
+
+             if has_transcription_loop(&chunk_text) {
+                 (self.emit)("process", &format!("segmento {}/{}: audio no transcribible omitido", idx + 1, total_chunks), None);
+                 // No añadimos el segmento musical al transcript
+             } else if !chunk_text.is_empty() {
+                 if !full_text.is_empty() {
+                     full_text.push(' ');
+                 }
+                 full_text.push_str(&chunk_text);
+             }
          }
-         text.trim().to_string()
+
+         full_text.trim().to_string()
      }
+}
+
+/// Detecta si el texto de un chunk es un loop de Whisper.
+/// Un loop se define como la misma ventana de 5 palabras repetida 5+ veces consecutivas.
+/// El habla humana natural no repite frases exactas más de 3-4 veces seguidas.
+fn has_transcription_loop(text: &str) -> bool {
+    let words: Vec<&str> = text.split_whitespace().collect();
+    let window = 5;
+    let threshold = 5;
+
+    if words.len() < window * threshold {
+        return false;
+    }
+
+    for i in 0..words.len().saturating_sub(window * threshold) {
+        let pattern = &words[i..i + window];
+        let mut count = 1;
+        let mut j = i + window;
+        while j + window <= words.len() && &words[j..j + window] == pattern {
+            count += 1;
+            j += window;
+            if count >= threshold {
+                return true;
+            }
+        }
+    }
+    false
 }
