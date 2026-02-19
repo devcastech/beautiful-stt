@@ -52,6 +52,10 @@ fn ensure_model(
             "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
         } else if model_name.contains("gemma-2-9b-it") {
             "bartowski/gemma-2-9b-it-GGUF"
+        } else if model_name.contains("Qwen2.5-14B-Instruct-IQ2_M.gguf") {
+            "bartowski/Qwen2.5-14B-Instruct-GGUF"
+        } else if model_name.contains("Ministral-8B") {
+            "bartowski/Ministral-8B-Instruct-2410-GGUF"
         } else {
             "Qwen2.5-3B-Instruct-GGUF"
         };
@@ -307,6 +311,12 @@ fn format_chat_prompt(system: &str, user: &str, assistant_prefix: &str, model_na
         format!(
             "<start_of_turn>user\n{}\n\n{}<end_of_turn>\n\
             <start_of_turn>model\n{}",
+            system, user, assistant_prefix
+        )
+    } else if model_lower.contains("ministral") {
+        // Mistral instruct format: <s>[INST]{system}\n\n{user}[/INST]
+        format!(
+            "<s>[INST]{}\n\n{}[/INST]{}",
             system, user, assistant_prefix
         )
     } else {

@@ -55,9 +55,20 @@ export const llmModels = [
     description: 'Ganador. Gran lógica, entiende negaciones y limpia bien el audio.',
   },
   {
+    name: 'Qwen2.5-14B-Instruct-IQ2_M.gguf',
+    label: 'Qwen2.5-14B (Q2) - 5.36GB',
+    description: 'Máxima precisión en. Ideal para tareas complejas.',
+  },
+  
+  {
     name: 'gemma-2-9b-it-Q4_K_L.gguf',
     label: 'Gemma 2 9b (Q4) - 5.98GB',
     description: 'Data specialist. El mejor extrayendo cifras y datos exactos.',
+  },
+  {
+    name: 'Ministral-8B-Instruct-2410-Q4_K_S.gguf',
+    label: 'Ministral 8B (Q4) - 4.77GB',
+    description: 'Mistral 8B compacto. Alta calidad de instrucción en tamaño eficiente.',
   },
   {
     name: 'phi-4-Q4_0.gguf',
