@@ -14,27 +14,29 @@ export const DisplayTranscript = ({ text, isProcessing }: { text?: string, isPro
   return (
     <div
       ref={containerRef}
-      className={`rounded-xl bg-surface min-h-64 max-h-80 lg:min-h-90 lg:max-h-96 overflow-y-auto `}
+      className="border border-line rounded min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
     >
-      <div className={`flex justify-between items-center mb-2 bg-surface sticky top-0 p-4 ${isProcessing ? 'animate-pulse' : ''}`}>
-        <p className="text-xs text-muted uppercase tracking-wider">{
-          isProcessing ? "Transcribiendo..." : "Transcripción"
-        }</p>
-        {text  && !isProcessing && (
+      <div className={`flex justify-between items-center sticky top-0 bg-bg px-4 py-3 border-b border-line ${isProcessing ? 'animate-pulse' : ''}`}>
+        <p className="text-xs text-muted uppercase tracking-widest">
+          {isProcessing ? 'Transcribiendo...' : 'Transcripción'}
+        </p>
+        {text && !isProcessing && (
           <button
             onClick={() => {
               navigator.clipboard.writeText(text);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
             }}
-            className="flex items-center gap-1 text-xs text-muted hover:text-accent transition-colors"
+            className="flex items-center gap-1.5 text-xs text-muted hover:text-text transition-colors"
           >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
+            {copied ? <Check size={12} strokeWidth={1.5} /> : <Copy size={12} strokeWidth={1.5} />}
             {copied ? 'Copiado' : 'Copiar'}
           </button>
         )}
       </div>
-      {text && <p className="text-sm leading-relaxed whitespace-pre-wrap px-2">{text}</p>}
+      {text && (
+        <p className="text-sm leading-relaxed whitespace-pre-wrap p-4">{text}</p>
+      )}
     </div>
   );
 };

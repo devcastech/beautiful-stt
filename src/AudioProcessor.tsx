@@ -12,6 +12,7 @@ type ProcessEvent = {
   step: string;
   count?: number;
 };
+
 export const AudioProcessor = () => {
   const [selectedFilePath, setSelectedFileFilePath] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; url: string } | null>(null);
@@ -23,7 +24,7 @@ export const AudioProcessor = () => {
   const [summary, setSummary] = useState<string>('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
-  const [outputMode, setOutputMode] = useState<'summary' | 'acta'>('summary');
+  const [outputMode, setOutputMode] = useState<'summary' | 'detailed'>('summary');
 
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
@@ -38,7 +39,6 @@ export const AudioProcessor = () => {
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
       }
-
       if (event.payload.event === 'summary_segment') {
         setSummary((prev) => prev + event.payload.step);
       }
@@ -116,36 +116,41 @@ export const AudioProcessor = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-6 lg:px-10 py-4 flex flex-col gap-2">
-      <div className="flex flex-col lg:flex-row justify-center items-center lg:items-start gap-4">
-        <div className="w-full max-w-lg flex flex-col gap-4">
+    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-8 py-6 flex flex-col gap-5">
+      <div className="flex flex-col lg:flex-row gap-6 items-start">
+
+        {/* Left column — controls */}
+        <div className="w-full lg:w-72 shrink-0 flex flex-col gap-4">
+
+          {/* Upload zone */}
           <button
             onClick={handleSelectFile}
-            className="group w-full border border-dashed border-muted hover:border-accent rounded-xl py-2 transition-all duration-300"
+            className="group w-full border border-line hover:border-text rounded py-8 transition-all duration-200"
           >
-            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors">
-              <CloudUpload size={28} strokeWidth={1.5} />
-              <span className="text-sm font-medium">
-                {fileInfo ? 'Seleccionar otro' : 'Seleccionar audio'}
+            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-text transition-colors duration-200">
+              <CloudUpload size={20} strokeWidth={1.25} />
+              <span className="text-xs font-medium tracking-widest uppercase">
+                {fileInfo ? 'Cambiar archivo' : 'Seleccionar audio'}
               </span>
             </div>
           </button>
+
+          {/* File info */}
           {fileInfo && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-surface">
-              <div className="shrink-0 w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                <Music size={18} className="text-white" />
+            <div className="flex flex-col gap-2 pb-1">
+              <div className="flex items-center gap-2">
+                <Music size={12} className="text-muted shrink-0" strokeWidth={1.5} />
+                <p className="text-xs text-muted truncate">{fileInfo.name}</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{fileInfo.name}</p>
-                <audio controls src={fileInfo.url} className="w-full h-8 mt-1" />
-              </div>
+              <audio controls src={fileInfo.url} className="w-full h-8" />
             </div>
           )}
 
+          {/* Transcription model */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-wider">Modelo</label>
+            <label className="text-xs text-muted uppercase tracking-widest">Modelo</label>
             <select
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
@@ -157,50 +162,70 @@ export const AudioProcessor = () => {
             </select>
           </div>
 
+          {/* Transcribe button */}
           {selectedFilePath && (
             <button
               onClick={processAudioFile}
               disabled={isProcessing}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm text-white transition-all duration-300 ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm font-medium transition-all duration-200 ${
                 isProcessing
-                  ? 'bg-accent cursor-not-allowed animate-pulse'
-                  : 'bg-accent hover:opacity-90 active:scale-[0.98]'
+                  ? 'bg-text text-bg opacity-40 cursor-not-allowed'
+                  : 'bg-text text-bg hover:opacity-80 active:scale-[0.99]'
               }`}
             >
-              <WandSparkles size={16} />
+              <WandSparkles size={13} strokeWidth={1.5} />
               {isProcessing ? 'Procesando...' : 'Transcribir'}
             </button>
           )}
+
+          {/* Progress bar */}
           {processStep && (
             <div className="flex flex-col gap-2">
               <div className="flex justify-between text-xs text-muted">
                 <span>{processStep.step}</span>
                 {processStep.count != null && <span>{processStep.count}%</span>}
               </div>
-              <div className="w-full h-1.5 rounded-full bg-surface overflow-auto">
+              <div className="w-full h-px bg-line overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
+                  className="h-full bg-text transition-all duration-500 ease-out"
                   style={{ width: `${processStep.count != null ? processStep.count : 100}%` }}
                 />
               </div>
             </div>
           )}
+
+          {/* Resource info */}
+          <div className="flex items-center gap-2 mt-auto pt-2">
+            <span className="text-xs font-mono text-muted">{model.replace('.bin', '')}</span>
+            {resourcesUsed && (
+              <>
+                <span className="text-muted text-xs">·</span>
+                <span className="text-xs font-mono text-muted">{resourcesUsed}</span>
+              </>
+            )}
+          </div>
         </div>
-        <div className="w-full rounded-lg relative">
+
+        {/* Transcript panel */}
+        <div className="w-full min-w-0">
           <DisplayTranscript text={result} isProcessing={isProcessing} />
         </div>
+
+        {/* Summary panel */}
         {summary && (
-          <div className="w-full rounded-lg">
+          <div className="w-full min-w-0">
             <DisplaySummary text={summary} isGenerating={isSummarizing} />
           </div>
         )}
       </div>
+
+      {/* Post-transcript controls */}
       {result && !isProcessing && (
-        <>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-wider">Modelo de resumen</label>
+        <div className="flex flex-col lg:flex-row gap-4 border-t border-line pt-5">
+          <div className="flex-1 flex flex-col gap-1.5">
+            <label className="text-xs text-muted uppercase tracking-widest">Modelo de resumen</label>
             <select
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
               value={llmModel}
               onChange={(e) => setLlmModel(e.target.value)}
             >
@@ -212,40 +237,34 @@ export const AudioProcessor = () => {
             </select>
           </div>
 
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-wider">Tipo de salida</label>
+          <div className="flex-1 flex flex-col gap-1.5">
+            <label className="text-xs text-muted uppercase tracking-widest">Tipo de salida</label>
             <select
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
               value={outputMode}
-              onChange={(e) => setOutputMode(e.target.value as 'summary' | 'acta')}
+              onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}
             >
-              <option value="summary">Resumen — Manual de consulta rápida</option>
-              <option value="acta">Acta — Minuta de sesión o junta</option>
+              <option value="summary">Resumen — Idea general de qué trata el audio</option>
+              <option value="detailed">Detallado — Resumen + valores, fechas y datos clave ⚠️ requiere buen hardware</option>
             </select>
           </div>
 
-          <button
-            onClick={handleSummarize}
-            disabled={isSummarizing}
-            className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm text-white transition-all duration-300 ${
-              isSummarizing
-                ? 'bg-purple-600 cursor-not-allowed animate-pulse'
-                : 'bg-purple-600 hover:opacity-90 active:scale-[0.98]'
-            }`}
-          >
-            <Sparkles size={16} />
-            {isSummarizing ? 'Generando...' : outputMode === 'acta' ? 'Generar Acta' : 'Resumir'}
-          </button>
-        </>
+          <div className="flex items-end">
+            <button
+              onClick={handleSummarize}
+              disabled={isSummarizing}
+              className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded text-sm font-medium border transition-all duration-200 ${
+                isSummarizing
+                  ? 'border-line text-muted cursor-not-allowed'
+                  : 'border-text text-text hover:bg-text hover:text-bg active:scale-[0.99]'
+              }`}
+            >
+              <Sparkles size={12} strokeWidth={1.5} />
+              {isSummarizing ? 'Generando...' : outputMode === 'detailed' ? 'Resumen detallado' : 'Resumir'}
+            </button>
+          </div>
+        </div>
       )}
-      <div className="w-full flex justify-center items-center gap-2 border-t border-surface pt-2">
-        <p className="text-xs font-mono border border-surface text-muted p-1 rounded">
-          {model.replace('.bin', '')}
-        </p>
-        <p className="text-xs font-mono border border-surface  text-muted p-1 rounded">
-          {resourcesUsed}
-        </p>
-      </div>
     </div>
   );
 };
