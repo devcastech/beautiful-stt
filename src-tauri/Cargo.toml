@@ -1,6 +1,6 @@
 [package]
 name = "beautiful-stt"
-version = "0.1.0"
+version = "1.0.0"
 description = "Beautiful Speech-to-Text"
 authors = ["eduar.tech"]
 edition = "2021"
@@ -19,10 +19,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 
-[features]                                     
-default = []                                   
-metal = ["whisper-rs/metal"]                   
-cuda = ["whisper-rs/cuda"]      
+[features]
+default = []
+metal = ["whisper-rs/metal"]
+cuda = ["whisper-rs/cuda"]
 
 [dependencies]
 tauri = { version = "2", features = ["protocol-asset"] }
@@ -33,7 +33,7 @@ tauri-plugin-dialog = "2.6.0"
 tauri-plugin-fs = "2.4.5"
 
 # AUDIO PROCESS
-ureq = "2"    
+ureq = "2"
 hound = "3.5.1"
 nnnoiseless = "0.5.2"
 whisper-rs = "0.15"
@@ -43,4 +43,3 @@ indicatif = "0.18.3"
 symphonia = { version = "0.5", features = ["mp3", "ogg", "wav", "flac", "aac"] }
 opus = "0.3"
 ogg = "0.9"
-
