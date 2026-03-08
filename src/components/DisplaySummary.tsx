@@ -1,26 +1,26 @@
-import { Check, Copy } from 'lucide-react';
+import { Check, Copy, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ProcessEvent } from '../AudioProcessor';
 
-export const DisplayTranscript = ({
+export const DisplaySummary = ({
   text,
-  isProcessing,
+  isGenerating,
   processStep,
 }: {
   text?: string;
-  isProcessing: boolean;
+  isGenerating: boolean;
   processStep?: ProcessEvent | null;
 }) => {
   const [copied, setCopied] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const progress = processStep?.event === 'process' ? processStep : null;
+  const progress = processStep?.event === 'summary_progress' ? processStep : null;
 
   useEffect(() => {
-    if (isProcessing && containerRef.current) {
+    if (isGenerating && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }
-  }, [text, isProcessing]);
+  }, [text, isGenerating]);
 
   return (
     <div
@@ -29,10 +29,13 @@ export const DisplayTranscript = ({
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
         <div className="flex justify-between items-center">
-          <p className={`text-xs uppercase tracking-widest ${isProcessing ? 'text-accent' : 'text-muted'}`}>
-            {isProcessing ? 'Transcribiendo...' : 'Transcripción'}
-          </p>
-          {text && !isProcessing && (
+          <div className="flex items-center gap-2">
+            <Sparkles size={12} strokeWidth={1.5} className={isGenerating ? 'text-accent' : 'text-muted'} />
+            <p className={`text-xs uppercase tracking-widest ${isGenerating ? 'text-accent' : 'text-muted'}`}>
+              {isGenerating ? 'Generando...' : 'Resumen'}
+            </p>
+          </div>
+          {text && !isGenerating && (
             <button
               onClick={() => {
                 navigator.clipboard.writeText(text);

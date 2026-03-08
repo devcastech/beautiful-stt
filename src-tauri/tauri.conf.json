@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "beautiful speech to text",
-        "width": 800,
-        "height": 800
+        "width": 1100,
+        "height": 750
       }
     ],
     "security": {
@@ -43,6 +43,9 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+        "minimumSystemVersion": "11.0"
+    }
   }
 }

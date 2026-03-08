@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { CloudUpload, WandSparkles, Music } from 'lucide-react';
+import { CloudUpload, WandSparkles, Music, Sparkles } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { models } from './lib/constants';
+import { llmModels, models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
+import { DisplaySummary } from './components/DisplaySummary';
 
-type ProcessEvent = {
+export type ProcessEvent = {
   event: string;
   step: string;
   count?: number;
@@ -18,13 +19,17 @@ export const AudioProcessor = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
-  const [model, setModel] = useState<string>('ggml-small.bin');
+  const [model, setModel] = useState<string>(models[1].name);
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
+  const [summary, setSummary] = useState<string>('');
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
+  const [outputMode, setOutputMode] = useState<'summary' | 'detailed'>('summary');
 
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
       console.log(event);
-      if (event.payload.event === 'process') {
+      if (['process', 'summary_progress'].includes(event.payload.event)) {
         setProcessStep({
           event: event.payload.event,
           step: event.payload.step,
@@ -33,6 +38,9 @@ export const AudioProcessor = () => {
       }
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
+      }
+      if (event.payload.event === 'summary_segment') {
+        setSummary((prev) => prev + event.payload.step);
       }
     });
     return () => {
@@ -53,6 +61,7 @@ export const AudioProcessor = () => {
 
   const processAudioFile = async () => {
     setIsProcessing(true);
+    setSummary('');
     setResult('');
     setProcessStep(null);
     const response = await invoke('process_audio_file', {
@@ -61,7 +70,29 @@ export const AudioProcessor = () => {
     });
     setResult(response as string);
     setIsProcessing(false);
-    // setProcessStep(null);
+  };
+
+  const handleSummarize = async () => {
+    if (!result) return;
+
+    setIsSummarizing(true);
+    setSummary('');
+    setProcessStep(null);
+
+    try {
+      const response = await invoke('summarize_transcript', {
+        transcript: result,
+        llmModel: llmModel,
+        outputMode: outputMode,
+      });
+      console.log('RESUMEN', response);
+      setSummary(response as string);
+    } catch (error) {
+      console.error('Error al resumir:', error);
+      setSummary('Error al generar el resumen: ' + error);
+    } finally {
+      setIsSummarizing(false);
+    }
   };
 
   const handleSelectFile = async () => {
@@ -85,36 +116,41 @@ export const AudioProcessor = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-6 lg:px-10 py-4 flex flex-col gap-2">
-      <div className="flex flex-col lg:flex-row justify-center items-center lg:items-start gap-4">
-        <div className="w-full max-w-lg flex flex-col gap-4">
+    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-5">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
+
+        {/* Sidebar — all controls */}
+        <div className="w-full lg:w-72 shrink-0 flex flex-col gap-4 bg-surface border border-line rounded-lg p-5">
+
+          {/* Upload zone */}
           <button
             onClick={handleSelectFile}
-            className="group w-full border border-dashed border-muted hover:border-accent rounded-xl py-2 transition-all duration-300"
+            className="group w-full border border-dashed border-line hover:border-accent rounded-lg py-6 transition-all duration-200"
           >
-            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors">
-              <CloudUpload size={28} strokeWidth={1.5} />
-              <span className="text-sm font-medium">
-                {fileInfo ? 'Seleccionar otro' : 'Seleccionar audio'}
+            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
+              <CloudUpload size={20} strokeWidth={1.25} />
+              <span className="text-xs font-medium tracking-widest uppercase">
+                {fileInfo ? 'Cambiar archivo' : 'Seleccionar audio'}
               </span>
             </div>
           </button>
+
+          {/* File info */}
           {fileInfo && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-surface">
-              <div className="shrink-0 w-10 h-10 rounded-lg bg-accent flex items-center justify-center">
-                <Music size={18} className="text-white" />
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <Music size={12} className="text-accent shrink-0" strokeWidth={1.5} />
+                <p className="text-xs text-muted truncate">{fileInfo.name}</p>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{fileInfo.name}</p>
-                <audio controls src={fileInfo.url} className="w-full h-8 mt-1" />
-              </div>
+              <audio controls src={fileInfo.url} className="w-full h-8" />
             </div>
           )}
 
+          {/* Transcription model */}
           <div className="flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-wider">Modelo</label>
+            <label className="text-xs text-muted uppercase tracking-widest">Modelo</label>
             <select
-              className="w-full px-3 py-2 rounded-lg bg-surface border border-transparent focus:border-accent outline-none text-sm transition-colors"
+              className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
@@ -126,46 +162,89 @@ export const AudioProcessor = () => {
             </select>
           </div>
 
+          {/* Transcribe button */}
           {selectedFilePath && (
             <button
               onClick={processAudioFile}
               disabled={isProcessing}
-              className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl font-medium text-sm text-white transition-all duration-300 ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isProcessing
-                  ? 'bg-accent cursor-not-allowed animate-pulse'
-                  : 'bg-accent hover:opacity-90 active:scale-[0.98]'
+                  ? 'bg-accent/20 text-accent cursor-not-allowed'
+                  : 'bg-accent text-bg hover:brightness-110 active:scale-[0.99]'
               }`}
             >
-              <WandSparkles size={16} />
+              <WandSparkles size={13} strokeWidth={1.5} />
               {isProcessing ? 'Procesando...' : 'Transcribir'}
             </button>
           )}
-          {processStep && (
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs text-muted">
-                <span>{processStep.step}</span>
-                {processStep.count != null && <span>{processStep.count}%</span>}
+
+          {/* Summary controls — visible after transcription */}
+          {result && !isProcessing && (
+            <>
+              <div className="border-t border-line" />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-widest">Modelo de resumen</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
+                  value={llmModel}
+                  onChange={(e) => setLlmModel(e.target.value)}
+                >
+                  {llmModels.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.label} — {m.description}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="w-full h-1.5 rounded-full bg-surface overflow-auto">
-                <div
-                  className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
-                  style={{ width: `${processStep.count != null ? processStep.count : 100}%` }}
-                />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-widest">Tipo de salida</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
+                  value={outputMode}
+                  onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}
+                >
+                  <option value="summary">Resumen general</option>
+                  <option value="detailed">Detallado (datos, fechas, valores)</option>
+                </select>
               </div>
-            </div>
+
+              <button
+                onClick={handleSummarize}
+                disabled={isSummarizing}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                  isSummarizing
+                    ? 'border-accent/30 text-accent/50 cursor-not-allowed'
+                    : 'border-accent text-accent hover:bg-accent hover:text-bg active:scale-[0.99]'
+                }`}
+              >
+                <Sparkles size={12} strokeWidth={1.5} />
+                {isSummarizing ? 'Generando...' : outputMode === 'detailed' ? 'Resumen detallado' : 'Resumir'}
+              </button>
+            </>
+          )}
+
+          {/* Resource info */}
+          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-line">
+            <span className="text-xs font-mono text-muted">{model.replace('.bin', '')}</span>
+            {resourcesUsed && (
+              <>
+                <span className="text-muted text-xs">·</span>
+                <span className="text-xs font-mono text-muted">{resourcesUsed}</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Output panels */}
+        <div className="w-full min-w-0 flex flex-col gap-5">
+          <DisplayTranscript text={result} isProcessing={isProcessing} processStep={processStep} />
+
+          {(summary || isSummarizing) && (
+            <DisplaySummary text={summary} isGenerating={isSummarizing} processStep={processStep} />
           )}
         </div>
-        <div className="w-full rounded-lg relative">
-          <DisplayTranscript text={result} isProcessing={isProcessing} />
-        </div>
-      </div>
-      <div className="w-full flex justify-center items-center gap-2 border-t border-surface pt-2">
-        <p className="text-xs font-mono border border-surface text-muted p-1 rounded">
-          {model.replace('.bin', '')}
-        </p>
-        <p className="text-xs font-mono border border-surface  text-muted p-1 rounded">
-          {resourcesUsed}
-        </p>
       </div>
     </div>
   );
