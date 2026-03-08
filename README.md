@@ -15,6 +15,15 @@ This is a problem when your audio contains:
 - Personal conversations
 - Sensitive client data
 
+<div align="center">
+  <video
+     src="https://github.com/devcastech/beautiful-stt/releases/download/v1.0.0
+     -beta.1/beautiful.stt.mp4" controls="controls" style="max-width: 100%;
+     border-radius: 10px;">
+    Your browser does not support the video tag.
+  </video>
+</div>
+
 **Beautiful STT runs 100% locally.** Your audio never leaves your machine.
 
 ## Features
