@@ -436,9 +436,12 @@ pub fn summarize_transcript(
     output_mode: Option<&str>,
 ) -> Result<String, String> {
     let model_name = llm_model.unwrap_or(DEFAULT_LLM_MODEL);
-    let is_detailed = output_mode.unwrap_or("summary") == "detailed";
+    let mode_str = output_mode.unwrap_or("summary");
+    let is_detailed = mode_str == "detailed";
 
     let mode_label = if is_detailed { "resumen detallado" } else { "resumen" };
+
+    println!("\n[SUMMARIZER] output_mode={:?}, is_detailed={}, model={}", mode_str, is_detailed, model_name);
 
     // 1. Descargar modelo principal si no existe
     emit("summary_progress", &format!("Preparando modelo {}", model_name), None);
@@ -452,20 +455,35 @@ pub fn summarize_transcript(
 
     // 3. Gemma extrae entidades — SOLO en modo "detailed"
     let entities: Option<String> = if is_detailed {
+        let gemma_path = get_model_path(GEMMA_ENTITY_MODEL);
+        println!("[GEMMA] Model path: {:?}", gemma_path);
+        println!("[GEMMA] File exists: {}", gemma_path.exists());
+        if gemma_path.exists() {
+            if let Ok(meta) = std::fs::metadata(&gemma_path) {
+                println!("[GEMMA] File size: {} bytes ({:.1} GB)", meta.len(), meta.len() as f64 / 1_073_741_824.0);
+            }
+        }
+
         emit("summary_progress", "Extrayendo datos clave con Gemma...", None);
         let src: String = transcript.chars().take(5000).collect();
+        println!("[GEMMA] Starting entity extraction with {} chars of text", src.len());
+
         match extract_entities_with_gemma(&*emit, &backend, &src) {
             Ok(json) => {
+                println!("[GEMMA] SUCCESS — entities extracted");
                 emit("summary_progress", "Datos extraídos — iniciando análisis principal", None);
                 Some(json)
             }
             Err(e) => {
-                println!("[GEMMA ENTITIES] No disponible: {}", e);
+                println!("\n[GEMMA ERROR] ============================================");
+                println!("[GEMMA ERROR] {}", e);
+                println!("[GEMMA ERROR] ============================================\n");
                 emit("summary_progress", &format!("Gemma no disponible ({}), continuando sin contexto", e), None);
                 None
             }
         }
     } else {
+        println!("[GEMMA] Skipped — not in detailed mode");
         None
     }; // Gemma liberada aquí
 

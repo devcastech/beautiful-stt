@@ -7,7 +7,7 @@ import { llmModels, models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
 import { DisplaySummary } from './components/DisplaySummary';
 
-type ProcessEvent = {
+export type ProcessEvent = {
   event: string;
   step: string;
   count?: number;
@@ -116,18 +116,18 @@ export const AudioProcessor = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-8 py-6 flex flex-col gap-5">
-      <div className="flex flex-col lg:flex-row gap-6 items-start">
+    <div className="w-full max-w-4xl lg:max-w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-5">
+      <div className="flex flex-col lg:flex-row gap-5 items-start">
 
-        {/* Left column — controls */}
-        <div className="w-full lg:w-72 shrink-0 flex flex-col gap-4">
+        {/* Sidebar — all controls */}
+        <div className="w-full lg:w-72 shrink-0 flex flex-col gap-4 bg-surface border border-line rounded-lg p-5">
 
           {/* Upload zone */}
           <button
             onClick={handleSelectFile}
-            className="group w-full border border-line hover:border-text rounded py-8 transition-all duration-200"
+            className="group w-full border border-dashed border-line hover:border-accent rounded-lg py-6 transition-all duration-200"
           >
-            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-text transition-colors duration-200">
+            <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
               <CloudUpload size={20} strokeWidth={1.25} />
               <span className="text-xs font-medium tracking-widest uppercase">
                 {fileInfo ? 'Cambiar archivo' : 'Seleccionar audio'}
@@ -137,9 +137,9 @@ export const AudioProcessor = () => {
 
           {/* File info */}
           {fileInfo && (
-            <div className="flex flex-col gap-2 pb-1">
+            <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <Music size={12} className="text-muted shrink-0" strokeWidth={1.5} />
+                <Music size={12} className="text-accent shrink-0" strokeWidth={1.5} />
                 <p className="text-xs text-muted truncate">{fileInfo.name}</p>
               </div>
               <audio controls src={fileInfo.url} className="w-full h-8" />
@@ -150,7 +150,7 @@ export const AudioProcessor = () => {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs text-muted uppercase tracking-widest">Modelo</label>
             <select
-              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
+              className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
               value={model}
               onChange={(e) => setModel(e.target.value)}
             >
@@ -167,10 +167,10 @@ export const AudioProcessor = () => {
             <button
               onClick={processAudioFile}
               disabled={isProcessing}
-              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded text-sm font-medium transition-all duration-200 ${
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isProcessing
-                  ? 'bg-text text-bg opacity-40 cursor-not-allowed'
-                  : 'bg-text text-bg hover:opacity-80 active:scale-[0.99]'
+                  ? 'bg-accent/20 text-accent cursor-not-allowed'
+                  : 'bg-accent text-bg hover:brightness-110 active:scale-[0.99]'
               }`}
             >
               <WandSparkles size={13} strokeWidth={1.5} />
@@ -178,24 +178,55 @@ export const AudioProcessor = () => {
             </button>
           )}
 
-          {/* Progress bar */}
-          {processStep && (
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between text-xs text-muted">
-                <span>{processStep.step}</span>
-                {processStep.count != null && <span>{processStep.count}%</span>}
+          {/* Summary controls — visible after transcription */}
+          {result && !isProcessing && (
+            <>
+              <div className="border-t border-line" />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-widest">Modelo de resumen</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
+                  value={llmModel}
+                  onChange={(e) => setLlmModel(e.target.value)}
+                >
+                  {llmModels.map((m) => (
+                    <option key={m.name} value={m.name}>
+                      {m.label} — {m.description}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <div className="w-full h-px bg-line overflow-hidden">
-                <div
-                  className="h-full bg-text transition-all duration-500 ease-out"
-                  style={{ width: `${processStep.count != null ? processStep.count : 100}%` }}
-                />
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs text-muted uppercase tracking-widest">Tipo de salida</label>
+                <select
+                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
+                  value={outputMode}
+                  onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}
+                >
+                  <option value="summary">Resumen general</option>
+                  <option value="detailed">Detallado (datos, fechas, valores)</option>
+                </select>
               </div>
-            </div>
+
+              <button
+                onClick={handleSummarize}
+                disabled={isSummarizing}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                  isSummarizing
+                    ? 'border-accent/30 text-accent/50 cursor-not-allowed'
+                    : 'border-accent text-accent hover:bg-accent hover:text-bg active:scale-[0.99]'
+                }`}
+              >
+                <Sparkles size={12} strokeWidth={1.5} />
+                {isSummarizing ? 'Generando...' : outputMode === 'detailed' ? 'Resumen detallado' : 'Resumir'}
+              </button>
+            </>
           )}
 
           {/* Resource info */}
-          <div className="flex items-center gap-2 mt-auto pt-2">
+          <div className="flex items-center gap-2 mt-auto pt-2 border-t border-line">
             <span className="text-xs font-mono text-muted">{model.replace('.bin', '')}</span>
             {resourcesUsed && (
               <>
@@ -206,65 +237,15 @@ export const AudioProcessor = () => {
           </div>
         </div>
 
-        {/* Transcript panel */}
-        <div className="w-full min-w-0">
-          <DisplayTranscript text={result} isProcessing={isProcessing} />
-        </div>
+        {/* Output panels */}
+        <div className="w-full min-w-0 flex flex-col gap-5">
+          <DisplayTranscript text={result} isProcessing={isProcessing} processStep={processStep} />
 
-        {/* Summary panel */}
-        {summary && (
-          <div className="w-full min-w-0">
-            <DisplaySummary text={summary} isGenerating={isSummarizing} />
-          </div>
-        )}
+          {(summary || isSummarizing) && (
+            <DisplaySummary text={summary} isGenerating={isSummarizing} processStep={processStep} />
+          )}
+        </div>
       </div>
-
-      {/* Post-transcript controls */}
-      {result && !isProcessing && (
-        <div className="flex flex-col lg:flex-row gap-4 border-t border-line pt-5">
-          <div className="flex-1 flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-widest">Modelo de resumen</label>
-            <select
-              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
-              value={llmModel}
-              onChange={(e) => setLlmModel(e.target.value)}
-            >
-              {llmModels.map((m) => (
-                <option key={m.name} value={m.name}>
-                  {m.label} — {m.description}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex-1 flex flex-col gap-1.5">
-            <label className="text-xs text-muted uppercase tracking-widest">Tipo de salida</label>
-            <select
-              className="w-full px-3 py-2 rounded border border-line hover:border-text focus:border-text bg-bg outline-none text-sm transition-colors"
-              value={outputMode}
-              onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}
-            >
-              <option value="summary">Resumen — Idea general de qué trata el audio</option>
-              <option value="detailed">Detallado — Resumen + valores, fechas y datos clave ⚠️ requiere buen hardware</option>
-            </select>
-          </div>
-
-          <div className="flex items-end">
-            <button
-              onClick={handleSummarize}
-              disabled={isSummarizing}
-              className={`flex items-center justify-center gap-2 px-6 py-2.5 rounded text-sm font-medium border transition-all duration-200 ${
-                isSummarizing
-                  ? 'border-line text-muted cursor-not-allowed'
-                  : 'border-text text-text hover:bg-text hover:text-bg active:scale-[0.99]'
-              }`}
-            >
-              <Sparkles size={12} strokeWidth={1.5} />
-              {isSummarizing ? 'Generando...' : outputMode === 'detailed' ? 'Resumen detallado' : 'Resumir'}
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

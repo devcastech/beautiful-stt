@@ -13,7 +13,7 @@ function App() {
       <div className="flex-1">
         <AudioProcessor />
       </div>
-      <footer className="flex justify-center items-center gap-1.5 px-8 py-3 border-t border-line">
+      <footer className="flex justify-center items-center gap-1.5 px-8 py-3">
         <span className="text-xs text-muted">by</span>
         <a href="https://eduar.tech" target="_blank" className="text-xs">
           eduar.tech

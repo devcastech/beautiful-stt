@@ -1,23 +1,12 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #FFFFFF;
-  --color-surface: #F5F5F5;
-  --color-text: #111111;
-  --color-muted: #9A9A9A;
-  --color-accent: #111111;
-  --color-line: #E8E8E8;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-bg: #0C0C0C;
-    --color-surface: #141414;
-    --color-text: #EFEFEF;
-    --color-muted: #4E4E4E;
-    --color-accent: #EFEFEF;
-    --color-line: #1E1E1E;
-  }
+  --color-bg: #0B0D10;
+  --color-surface: #141720;
+  --color-text: #E0E2E8;
+  --color-muted: #565B66;
+  --color-accent: #8B5CF6;
+  --color-line: #1C2030;
 }
 
 :root {
@@ -48,10 +37,15 @@ a {
 }
 
 a:hover {
-  color: var(--color-text);
+  color: var(--color-accent);
 }
 
-/* Thin custom scrollbar */
+::selection {
+  background-color: var(--color-accent);
+  color: var(--color-bg);
+}
+
+/* Scrollbar */
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--color-line) transparent;
@@ -71,12 +65,11 @@ a:hover {
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-muted);
+  background-color: var(--color-accent);
 }
 
-/* Audio player accent */
 audio {
-  accent-color: var(--color-text);
+  accent-color: var(--color-accent);
 }
 
 select {
