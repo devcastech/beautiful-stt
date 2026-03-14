@@ -28,13 +28,14 @@ export const DisplaySummary = ({
       className="bg-surface border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Sparkles size={12} strokeWidth={1.5} className={isGenerating ? 'text-accent' : 'text-muted'} />
-            <p className={`text-xs uppercase tracking-widest ${isGenerating ? 'text-accent' : 'text-muted'}`}>
-              {isGenerating ? 'Generando...' : 'Resumen'}
-            </p>
-          </div>
+        <div className="flex justify-between items-center min-h-5">
+          {isGenerating
+            ? <div className="flex items-center gap-2">
+                <Sparkles size={12} strokeWidth={1.5} className="text-accent" />
+                <p className="text-xs text-accent">Generando...</p>
+              </div>
+            : <div />
+          }
           {text && !isGenerating && (
             <button
               onClick={() => {
@@ -50,7 +51,6 @@ export const DisplaySummary = ({
           )}
         </div>
 
-        {/* Contextual progress bar */}
         {progress && (
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex justify-between text-xs text-muted">
