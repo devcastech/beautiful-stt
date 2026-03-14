@@ -28,10 +28,11 @@ export const DisplayTranscript = ({
       className="bg-surface border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
-        <div className="flex justify-between items-center">
-          <p className={`text-xs uppercase tracking-widest ${isProcessing ? 'text-accent' : 'text-muted'}`}>
-            {isProcessing ? 'Transcribiendo...' : 'Transcripción'}
-          </p>
+        <div className="flex justify-between items-center min-h-5">
+          {isProcessing
+            ? <p className="text-xs text-accent">Transcribiendo...</p>
+            : <div />
+          }
           {text && !isProcessing && (
             <button
               onClick={() => {
@@ -47,7 +48,6 @@ export const DisplayTranscript = ({
           )}
         </div>
 
-        {/* Contextual progress bar */}
         {progress && (
           <div className="flex flex-col gap-1 mt-2">
             <div className="flex justify-between text-xs text-muted">
