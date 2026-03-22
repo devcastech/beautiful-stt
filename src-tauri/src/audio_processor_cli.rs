@@ -47,7 +47,7 @@ impl AudioProcessor {
         let ext = std::path::Path::new(&self.file_path)
             .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
         println!("[STT] file ext={}", ext);
-        let native_formats = ["wav", "mp3", "flac", "ogg"];
+        let native_formats = ["wav", "mp3", "flac"];
         let (audio_path, temp_wav) = if native_formats.contains(&ext.as_str()) {
             println!("[STT] native format, passing directly");
             (self.file_path.clone(), None)
@@ -260,7 +260,8 @@ impl AudioProcessor {
         }
 
         let stderr_lines = stderr_thread.join().unwrap_or_default();
-        let _ = child.wait();
+        let status = child.wait();
+        println!("[STT] whisper exit status: {:?}", status);
         let result = full_text.trim().to_string();
 
         if result.is_empty() {

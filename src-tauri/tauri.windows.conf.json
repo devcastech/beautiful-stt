@@ -5,8 +5,8 @@
       "binaries/ggml.dll": "",
       "binaries/ggml-base.dll": "",
       "binaries/ggml-cpu.dll": "",
-      "binaries/ggml-cuda.dll": "",
-      "binaries/cudart64_110.dll": ""
+      "binaries/ggml-blas.dll": "",
+      "binaries/libopenblas.dll": ""
     }
   }
 }
