@@ -79,6 +79,27 @@ Open source - MIT License
 
 Contributions are welcome! Feel free to open issues or submit pull requests.
 
+## Next Steps
+
+### Quick wins
+- **Language selection** — Whisper supports many languages but the app is currently hardcoded to Spanish. Exposing this as a UI option unlocks the full model capability with no pipeline changes.
+- **Export results** — Add export to `.txt` or `.md` via `tauri-plugin-fs` (already a project dependency). Currently only copy-to-clipboard is available.
+- **Cancellation** — No way to stop a transcription in progress. A long audio file forces the user to close the app entirely.
+
+### Medium-impact features
+- **Model download progress** — Models range from 500 MB to 9 GB and download silently. The first use of any model looks like a crash. A real progress bar is needed.
+- **Extracted entities in the UI** — The backend already extracts structured JSON (people, dates, organizations, figures) via Gemma in detailed mode, but this data never reaches the frontend. Displaying it as a dedicated panel would be a meaningful differentiator.
+- **Session history** — Persist transcriptions and summaries in `localStorage` or SQLite (Tauri has a plugin) so work isn't lost on close.
+
+### Technical improvements
+- **GPU/CPU fallback** — `n_gpu_layers(99)` assumes unlimited VRAM. On low-VRAM hardware the process crashes silently. This needs a configurable limit or at least a graceful CPU fallback.
+- **Batch processing** — The pipeline is already reusable. Extending the UI to accept a queue of files is the main work.
+- **Direct microphone recording** — The natural use case is recording a meeting or voice note directly in the app, not only loading pre-recorded files.
+
+### Longer term
+- **Global shortcut / system plugin** — A system-wide hotkey to start recording from any app, similar to Whisper Flow or SuperWhisper. Tauri supports global shortcuts.
+- **Timestamps in the transcript** — Whisper produces per-segment timestamps internally but they aren't surfaced in the UI. Useful for navigating long audio (click text → jump to that minute).
+
 ## Build from source
 ```bash
 set -gx CXXFLAGS "-mmacosx-version-min=11.0 -std=c++17"
