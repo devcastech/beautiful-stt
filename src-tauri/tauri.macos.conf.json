@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "macOS": {
+      "frameworks": [
+        "binaries/libwhisper.1.dylib",
+        "binaries/libggml.0.dylib",
+        "binaries/libggml-base.0.dylib"
+      ]
+    }
+  }
+}
