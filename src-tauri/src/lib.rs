@@ -4,6 +4,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 mod utils;
+#[path = "audio_processor_cli.rs"]
 mod audio_processor;
 mod summarizer;
 
