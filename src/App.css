@@ -1,16 +1,25 @@
 @import "tailwindcss";
 
+/* ----------------------------------------------------------------------------
+   Sistema de diseño "Tinta y papel" — alineado con la landing de belabs.
+   Se mantienen los nombres de tokens (bg/surface/text/muted/accent/line)
+   para que toda la UI existente se recoloree sin tocar los componentes.
+---------------------------------------------------------------------------- */
 @theme {
-  --color-bg: #0D1017;
-  --color-surface: #161D2C;
-  --color-text: #ECEEf4;
-  --color-muted: #8491A8;
-  --color-accent: #9B6FF7;
-  --color-line: #232C40;
+  --color-bg: #faf8f4;      /* papel cálido */
+  --color-surface: #f0ede5; /* papel oscuro — tarjetas */
+  --color-text: #1a1a1a;    /* tinta */
+  --color-muted: #6f695d;   /* tinta gris — texto secundario */
+  --color-accent: #2d4a3e;  /* verde tinta — acento estructural (eyebrows) */
+  --color-lacre: #b8351f;   /* rojo lacre — acento cálido (timestamps, CTAs) */
+  --color-line: #ddd6c8;    /* envejecido — bordes */
+
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
 }
 
 :root {
-  font-family: Inter, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--font-body);
   font-size: 15px;
   line-height: 1.6;
   font-weight: 400;
@@ -18,6 +27,7 @@
 
   color: var(--color-text);
   background-color: var(--color-bg);
+  color-scheme: light;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -30,6 +40,25 @@ html, body, #root {
   margin: 0;
 }
 
+body {
+  position: relative;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 a {
   color: var(--color-muted);
   text-decoration: none;
@@ -37,7 +66,7 @@ a {
 }
 
 a:hover {
-  color: var(--color-accent);
+  color: var(--color-lacre);
 }
 
 ::selection {
@@ -45,10 +74,15 @@ a:hover {
   color: var(--color-bg);
 }
 
+:focus-visible {
+  outline: 2px solid var(--color-lacre);
+  outline-offset: 2px;
+}
+
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-line) transparent;
+  scrollbar-color: #d8d2c6 transparent;
 }
 
 *::-webkit-scrollbar {
@@ -60,7 +94,7 @@ a:hover {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: var(--color-line);
+  background-color: #d8d2c6;
   border-radius: 2px;
 }
 

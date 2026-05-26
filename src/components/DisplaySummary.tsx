@@ -25,7 +25,7 @@ export const DisplaySummary = ({
   return (
     <div
       ref={containerRef}
-      className="bg-surface border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
+      className="bg-bg border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
         <div className="flex justify-between items-center min-h-5">
@@ -43,7 +43,7 @@ export const DisplaySummary = ({
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-lacre transition-colors"
             >
               {copied ? <Check size={12} strokeWidth={1.5} /> : <Copy size={12} strokeWidth={1.5} />}
               {copied ? 'Copiado' : 'Copiar'}

@@ -4,10 +4,10 @@ import './App.css';
 function App() {
   return (
     <main className="w-full h-full flex flex-col overflow-auto">
-      <header className="flex items-center justify-between px-8 py-4 border-b border-line">
+      <header className="flex items-center justify-between px-8 py-4">
         <div className="flex items-center gap-3">
           <img src="/logo.png" className="w-5 h-5 object-contain opacity-70" alt="" />
-          <span className="text-sm font-medium tracking-tight">Beautiful STT</span>
+          <span className="font-mono text-sm font-bold">Beautiful STT</span>
         </div>
       </header>
       <div className="flex-1">

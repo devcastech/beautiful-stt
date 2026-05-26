@@ -13,11 +13,18 @@ export type ProcessEvent = {
   count?: number;
 };
 
+export type TranscriptSegment = {
+  from_ms: number;
+  to_ms: number;
+  text: string;
+};
+
 export const AudioProcessor = () => {
   const [selectedFilePath, setSelectedFileFilePath] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; url: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
+  const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
   const [model, setModel] = useState<string>(models[1].name);
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
@@ -42,6 +49,13 @@ export const AudioProcessor = () => {
       if (event.payload.event === 'summary_segment') {
         setSummary((prev) => prev + event.payload.step);
       }
+      if (event.payload.event === 'transcript_structured') {
+        try {
+          setSegments(JSON.parse(event.payload.step) as TranscriptSegment[]);
+        } catch (e) {
+          console.error('No se pudo parsear transcript_structured', e);
+        }
+      }
     });
     return () => {
       unlisten.then((fn) => fn());
@@ -63,6 +77,7 @@ export const AudioProcessor = () => {
     setIsProcessing(true);
     setSummary('');
     setResult('');
+    setSegments([]);
     setProcessStep(null);
     const response = await invoke('process_audio_file', {
       filePath: selectedFilePath,
@@ -117,7 +132,7 @@ export const AudioProcessor = () => {
 
   const SectionHeader = ({ label }: { label: string }) => (
     <div className="flex items-center gap-3">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted shrink-0">{label}</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-accent shrink-0">{label}</span>
       <div className="h-px flex-1 bg-line" />
     </div>
   );
@@ -137,7 +152,7 @@ export const AudioProcessor = () => {
               >
                 <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
                   <CloudUpload size={18} strokeWidth={1.25} />
-                  <span className="text-xs font-medium tracking-widest uppercase">
+                  <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
                     {fileInfo ? 'Cambiar archivo' : 'Seleccionar audio'}
                   </span>
                 </div>
@@ -152,7 +167,7 @@ export const AudioProcessor = () => {
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Modelo Whisper</label>
+                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo Whisper</label>
                 <select
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={model}
@@ -171,8 +186,8 @@ export const AudioProcessor = () => {
                   disabled={isProcessing}
                   className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                     isProcessing
-                      ? 'bg-accent/20 text-accent cursor-not-allowed'
-                      : 'bg-accent text-bg hover:brightness-110 active:scale-[0.99]'
+                      ? 'bg-lacre/15 text-lacre cursor-not-allowed'
+                      : 'bg-lacre text-bg hover:brightness-110 active:scale-[0.99]'
                   }`}
                 >
                   <WandSparkles size={13} strokeWidth={1.5} />
@@ -192,7 +207,7 @@ export const AudioProcessor = () => {
             </div>
           </div>
 
-          <DisplayTranscript text={result} isProcessing={isProcessing} processStep={processStep} />
+          <DisplayTranscript text={result} segments={segments} isProcessing={isProcessing} processStep={processStep} />
         </div>
       </div>
 
@@ -203,7 +218,7 @@ export const AudioProcessor = () => {
           <div className="grid grid-cols-1 lg:grid-cols-[272px_1fr] gap-2 items-start">
             <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Modelo LLM</label>
+                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo LLM</label>
                 <select
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={llmModel}
@@ -217,7 +232,7 @@ export const AudioProcessor = () => {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-[10px] text-muted uppercase tracking-widest">Tipo de salida</label>
+                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Tipo de salida</label>
                 <select
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={outputMode}
@@ -232,8 +247,8 @@ export const AudioProcessor = () => {
                 disabled={isSummarizing}
                 className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
                   isSummarizing
-                    ? 'border-accent/30 text-accent/50 cursor-not-allowed'
-                    : 'border-accent text-accent hover:bg-accent hover:text-bg active:scale-[0.99]'
+                    ? 'border-lacre/30 text-lacre/50 cursor-not-allowed'
+                    : 'border-lacre text-lacre hover:bg-lacre hover:text-bg active:scale-[0.99]'
                 }`}
               >
                 <Sparkles size={12} strokeWidth={1.5} />

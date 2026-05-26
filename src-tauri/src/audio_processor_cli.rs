@@ -3,10 +3,39 @@ use std::sync::Arc;
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
 use std::thread;
+use serde::{Deserialize, Serialize};
 #[path = "audio_processor/audio_decoder/mod.rs"]
 mod audio_decoder;
 
 pub type EmitType = Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TranscriptSegment {
+    pub from_ms: u64,
+    pub to_ms: u64,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TranscriptionResult {
+    pub text: String,
+    pub segments: Vec<TranscriptSegment>,
+}
+
+#[derive(Deserialize)]
+struct WhisperJson {
+    transcription: Vec<WhisperJsonSegment>,
+}
+#[derive(Deserialize)]
+struct WhisperJsonSegment {
+    offsets: WhisperOffsets,
+    text: String,
+}
+#[derive(Deserialize)]
+struct WhisperOffsets {
+    from: u64,
+    to: u64,
+}
 
 const VAD_MODEL_NAME: &str = "ggml-silero-v6.2.0.bin";
 const VAD_MODEL_URL: &str = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
@@ -70,14 +99,19 @@ impl AudioProcessor {
 
         println!("[STT] calling transcribe with audio_path={}", audio_path);
         (self.emit)("process", "iniciando transcripción", None);
-        let text = self.transcribe(&audio_path, vad_path.as_deref());
+        let transcription = self.transcribe(&audio_path, vad_path.as_deref());
         if let Some(p) = temp_wav {
             let _ = std::fs::remove_file(p);
         }
 
+        if let Ok(json) = serde_json::to_string(&transcription.segments) {
+            println!("[STT] structured output ({} segmentos): {}", transcription.segments.len(), json);
+            (self.emit)("transcript_structured", &json, None);
+        }
+
         let elapsed = total.elapsed().as_secs();
         (self.emit)("process", &format!("Proceso completado en {:?} segundos", elapsed), None);
-        text
+        transcription.text
     }
 
     /// Resuelve la ruta del binario whisper-cli.
@@ -165,9 +199,12 @@ impl AudioProcessor {
         Ok(temp_path)
     }
 
-    pub fn transcribe(&self, file_path: &str, vad_model_path: Option<&std::path::Path>) -> String {
+    pub fn transcribe(&self, file_path: &str, vad_model_path: Option<&std::path::Path>) -> TranscriptionResult {
         let whisper_bin = self.get_whisper_bin_path();
         let model_path = self.get_model_path(&self.whisper_model);
+
+        let json_base = std::env::temp_dir().join(format!("beautiful_stt_out_{}", std::process::id()));
+        let json_path = json_base.with_extension("json");
         println!("[STT] whisper_bin={} exists={}", whisper_bin.display(), whisper_bin.exists());
         println!("[STT] model_path={} exists={}", model_path.display(), model_path.exists());
 
@@ -195,6 +232,8 @@ impl AudioProcessor {
            .arg("--prompt")
            .arg("Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.")
            .arg("-pp")                     // print-progress: emite % al stderr
+           .arg("-oj")                     // output JSON estructurado (segmentos + offsets ms)
+           .arg("-of").arg(&json_base)     // ruta base del/los archivo(s) de salida
            .stdout(Stdio::piped())
            .stderr(Stdio::piped());
 
@@ -216,7 +255,7 @@ impl AudioProcessor {
             Err(e) => {
                 let msg = format!("Error al ejecutar whisper-cli ({}): {}", whisper_bin.display(), e);
                 (self.emit)("process", &msg, None);
-                return msg;
+                return TranscriptionResult { text: msg, segments: Vec::new() };
             }
         };
 
@@ -262,9 +301,13 @@ impl AudioProcessor {
         let stderr_lines = stderr_thread.join().unwrap_or_default();
         let status = child.wait();
         println!("[STT] whisper exit status: {:?}", status);
-        let result = full_text.trim().to_string();
+        let text = full_text.trim().to_string();
 
-        if result.is_empty() {
+        let segments = parse_whisper_json(&json_path);
+        println!("[STT] structured segments parsed: {}", segments.len());
+        let _ = std::fs::remove_file(&json_path);
+
+        if text.is_empty() {
             // Emitir las últimas líneas de stderr para diagnosticar
             let error_hint: String = stderr_lines.iter().rev().take(3)
                 .cloned().collect::<Vec<_>>().into_iter().rev()
@@ -274,7 +317,38 @@ impl AudioProcessor {
             }
         }
 
-        result
+        TranscriptionResult { text, segments }
+    }
+}
+
+fn parse_whisper_json(json_path: &std::path::Path) -> Vec<TranscriptSegment> {
+    let content = match std::fs::read_to_string(json_path) {
+        Ok(c) => c,
+        Err(e) => {
+            println!("[STT] whisper json no encontrado en {}: {}", json_path.display(), e);
+            return Vec::new();
+        }
+    };
+    match serde_json::from_str::<WhisperJson>(&content) {
+        Ok(parsed) => parsed
+            .transcription
+            .into_iter()
+            .filter_map(|s| {
+                let text = s.text.trim().to_string();
+                if text.is_empty() || has_transcription_loop(&text) {
+                    return None;
+                }
+                Some(TranscriptSegment {
+                    from_ms: s.offsets.from,
+                    to_ms: s.offsets.to,
+                    text,
+                })
+            })
+            .collect(),
+        Err(e) => {
+            println!("[STT] error parseando whisper json: {}", e);
+            Vec::new()
+        }
     }
 }
 
