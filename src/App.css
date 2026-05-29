@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 /* ----------------------------------------------------------------------------
-   Sistema de diseño "Tinta y papel" — alineado con la landing de belabs.
-   Se mantienen los nombres de tokens (bg/surface/text/muted/accent/line)
+   Sistema de diseño "Tinta y papel" — light & dark.
+   Los tokens (bg/surface/text/muted/accent/lacre/line) se redefinen por tema
    para que toda la UI existente se recoloree sin tocar los componentes.
 ---------------------------------------------------------------------------- */
 @theme {
@@ -16,6 +16,21 @@
 
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* Tinta nocturna — paleta ergonómica para dark mode.
+   - Fondo profundo y superficies sutiles: ambiente oscuro y sobrio.
+   - Texto crema legible sin halación; cuerpo ~16:1 sobre el fondo.
+   - Bordes visibles (~2.8:1) para separar componentes del fondo.
+   - Acentos cálidos conservados (verde salvia + terracota). */
+:root[data-theme="dark"] {
+  --color-bg: #0c0b09;      /* tinta profunda — ambiente oscuro */
+  --color-surface: #161311; /* superficie apenas elevada — tarjeta sutil */
+  --color-text: #ece7d9;    /* papel crema — legible sin halación dura */
+  --color-muted: #a8a18f;   /* tinta gris cálida — secundario */
+  --color-accent: #a8c9b6;  /* verde salvia — acento estructural */
+  --color-lacre: #d49a82;   /* terracota — acento cálido (CTAs, timestamps) */
+  --color-line: #5f584d;    /* borde visible sobre el fondo profundo */
 }
 
 :root {
@@ -35,6 +50,10 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
 html, body, #root {
   height: 100%;
   margin: 0;
@@ -52,6 +71,10 @@ body::before {
   pointer-events: none;
   opacity: 0.035;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+:root[data-theme="dark"] body::before {
+  opacity: 0.03;
 }
 
 #root {
@@ -82,7 +105,7 @@ a:hover {
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #d8d2c6 transparent;
+  scrollbar-color: var(--color-line) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -94,7 +117,7 @@ a:hover {
 }
 
 *::-webkit-scrollbar-thumb {
-  background-color: #d8d2c6;
+  background-color: var(--color-line);
   border-radius: 2px;
 }
 
@@ -108,4 +131,16 @@ audio {
 
 select {
   cursor: pointer;
+}
+
+/* Respeta la preferencia de movimiento reducido del sistema. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

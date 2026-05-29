@@ -22,6 +22,7 @@ export type TranscriptSegment = {
 export const AudioProcessor = () => {
   const [selectedFilePath, setSelectedFileFilePath] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; url: string } | null>(null);
+  const [previewUnavailable, setPreviewUnavailable] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string>('');
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
@@ -119,6 +120,7 @@ export const AudioProcessor = () => {
 
       if (selected && typeof selected === 'string') {
         setResult('');
+        setPreviewUnavailable(false);
         setSelectedFileFilePath(selected);
         const assetUrl = convertFileSrc(selected);
         const fileName = selected.split(/[\\/]/).pop() || 'Audio';
@@ -132,7 +134,7 @@ export const AudioProcessor = () => {
 
   const SectionHeader = ({ label }: { label: string }) => (
     <div className="flex items-center gap-3">
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-accent shrink-0">{label}</span>
+      <h2 className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-accent shrink-0">{label}</h2>
       <div className="h-px flex-1 bg-line" />
     </div>
   );
@@ -161,14 +163,26 @@ export const AudioProcessor = () => {
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
                     <Music size={12} className="text-accent shrink-0" strokeWidth={1.5} />
-                    <p className="text-xs text-muted truncate">{fileInfo.name}</p>
+                    <p className="text-base text-muted truncate">{fileInfo.name}</p>
+                    <span className="font-mono text-xs uppercase tracking-wider text-accent border border-line rounded px-1.5 py-0.5 shrink-0">
+                      {fileInfo.name.split('.').pop()}
+                    </span>
                   </div>
-                  <audio controls src={fileInfo.url} className="w-full h-8" />
+                  {!previewUnavailable && (
+                    <audio
+                      controls
+                      src={fileInfo.url}
+                      aria-label={`Vista previa de ${fileInfo.name}`}
+                      className="w-full h-8"
+                      onError={() => setPreviewUnavailable(true)}
+                    />
+                  )}
                 </div>
               )}
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo Whisper</label>
+                <label htmlFor="whisper-model" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo</label>
                 <select
+                  id="whisper-model"
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={model}
                   onChange={(e) => setModel(e.target.value)}
@@ -218,8 +232,9 @@ export const AudioProcessor = () => {
           <div className="grid grid-cols-1 lg:grid-cols-[272px_1fr] gap-2 items-start">
             <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo LLM</label>
+                <label htmlFor="llm-model" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo LLM</label>
                 <select
+                  id="llm-model"
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={llmModel}
                   onChange={(e) => setLlmModel(e.target.value)}
@@ -232,8 +247,9 @@ export const AudioProcessor = () => {
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Tipo de salida</label>
+                <label htmlFor="output-mode" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Tipo de salida</label>
                 <select
+                  id="output-mode"
                   className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
                   value={outputMode}
                   onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}

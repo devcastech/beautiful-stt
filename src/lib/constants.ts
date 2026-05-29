@@ -40,6 +40,11 @@ export const llmModels = [
     description: 'Compacto. Buen razonamiento para tareas de texto simples.',
   },
   {
+    name: 'google_gemma-4-E2B-it-IQ2_M.gguf',
+    label: 'Gemma 4 E2B-it (Q2) - 2.62GB',
+    description: 'Compacto. Buen razonamiento para tareas de texto simples.',
+  },
+  {
     name: 'Llama-3.2-3B-Instruct-Q6_K_L.gguf',
     label: 'Llama 3.2 3B (Q6) - 2.74GB',
     description: 'Equilibrado en 3B. Más estable que Q4 sin perder velocidad.',
@@ -59,7 +64,7 @@ export const llmModels = [
     label: 'Qwen2.5-14B (Q2) - 5.36GB',
     description: 'Máxima precisión en. Ideal para tareas complejas.',
   },
-  
+
   {
     name: 'gemma-2-9b-it-Q4_K_L.gguf',
     label: 'Gemma 2 9b (Q4) - 5.98GB',

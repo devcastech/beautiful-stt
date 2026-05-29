@@ -32,7 +32,7 @@ export const DisplaySummary = ({
           {isGenerating
             ? <div className="flex items-center gap-2">
                 <Sparkles size={12} strokeWidth={1.5} className="text-accent" />
-                <p className="text-xs text-accent">Generando...</p>
+                <p role="status" className="text-xs text-accent">Generando...</p>
               </div>
             : <div />
           }
@@ -57,7 +57,14 @@ export const DisplaySummary = ({
               <span className="truncate">{progress.step}</span>
               {progress.count != null && <span className="shrink-0 ml-2">{progress.count}%</span>}
             </div>
-            <div className="w-full h-0.5 rounded-full bg-line overflow-hidden">
+            <div
+              role="progressbar"
+              aria-label={`Progreso del resumen: ${progress.step}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              {...(progress.count != null && { 'aria-valuenow': progress.count })}
+              className="w-full h-0.5 rounded-full bg-line overflow-hidden"
+            >
               <div
                 className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
                 style={{ width: `${progress.count != null ? progress.count : 100}%` }}

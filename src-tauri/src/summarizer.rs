@@ -52,6 +52,8 @@ fn ensure_model(
             "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
         } else if model_name.contains("gemma-2-9b-it") {
             "bartowski/gemma-2-9b-it-GGUF"
+        } else if model_name.contains("google_gemma-4-E2B-it") {
+            "bartowski/google_gemma-4-E2B-it-GGUF"
         } else if model_name.contains("Qwen2.5-14B-Instruct-IQ2_M.gguf") {
             "bartowski/Qwen2.5-14B-Instruct-GGUF"
         } else if model_name.contains("Ministral-8B") {
@@ -245,7 +247,8 @@ fn format_chat_prompt(system: &str, user: &str, assistant_prefix: &str, model_na
 // Extracción de entidades con Gemma (solo modo "detailed")
 // ===================================================
 
-const GEMMA_ENTITY_MODEL: &str = "gemma-2-9b-it-IQ4_XS.gguf";
+//const GEMMA_ENTITY_MODEL: &str = "gemma-2-9b-it-IQ4_XS.gguf";
+const GEMMA_ENTITY_MODEL: &str = "google_gemma-4-E2B-it.gguf"; // better performance, less memory
 
 fn build_entity_extraction_prompt(text: &str) -> String {
     let schema = r#"{"personas":[],"organizaciones":[],"fechas":[],"lugares":[],"cifras":[{"valor":"","contexto":""}],"normas":[],"votaciones":[{"tema":"","resultado":""}]}"#;
