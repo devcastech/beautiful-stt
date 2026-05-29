@@ -149,11 +149,7 @@ impl AudioProcessor {
     }
 
     pub fn get_model_path(&self, name: &str) -> std::path::PathBuf {
-        std::env::current_exe()
-            .ok()
-            .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-            .unwrap_or_default()
-            .join(name)
+        crate::utils::models_base_dir().join(name)
     }
 
     pub fn ensure_model(&self, emit: &dyn Fn(&str, &str, Option<u32>), whisper_model: &str) -> Result<(), Box<dyn std::error::Error>> {

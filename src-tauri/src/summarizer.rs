@@ -17,13 +17,8 @@ const DEFAULT_LLM_MODEL: &str = "Llama-3.2-3B-Instruct-Q4_K_M.gguf";
 // PASO 2.1: Manejo de modelos (patron de audio_processor.rs:50-71)
 // ===================================================
 
-/// Guarda modelos LLM en una subcarpeta separada de Whisper
 fn get_model_path(model_name: &str) -> std::path::PathBuf {
-    // Mismo patron que audio_processor.rs:50-56, pero con subcarpeta
-    std::env::current_exe()
-        .ok()
-        .and_then(|p| p.parent().map(|p| p.to_path_buf()))
-        .unwrap_or_default()
+    crate::utils::models_base_dir()
         .join("llm_models")
         .join(model_name)
 }

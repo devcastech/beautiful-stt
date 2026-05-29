@@ -101,6 +101,7 @@ Contributions are welcome! Feel free to open issues or submit pull requests.
 - **Timestamps in the transcript** — Whisper produces per-segment timestamps internally but they aren't surfaced in the UI. Useful for navigating long audio (click text → jump to that minute).
 
 ## Build from source
+## MAC OS
 ```bash
 set -gx CXXFLAGS "-mmacosx-version-min=11.0 -std=c++17"
 set -gx CFLAGS "-mmacosx-version-min=11.0"
@@ -108,3 +109,39 @@ set -gx MACOSX_DEPLOYMENT_TARGET 11.0
 set -gx CMAKE_OSX_DEPLOYMENT_TARGET 11.0
 CMAKE_GENERATOR="Unix Makefiles" CMAKE_POLICY_VERSION_MINIMUM=3.5 pnpm tauri build --features metal
 ```
+
+## LINUX
+
+```bash
+APPIMAGE_EXTRACT_AND_RUN=1 pnpm tauri build
+```
+
+> On Debian/Ubuntu, the AppImage bundling step needs `librsvg2-dev` (provides
+> `librsvg-2.0.pc` for the linuxdeploy GTK plugin). Install it first:
+> `sudo apt install librsvg2-dev`.
+
+## Where models are stored
+
+Models (Whisper, VAD and LLM) are **not** stored next to the binary — inside an
+AppImage that location is read-only and writing fails with
+`Permission denied (os error 13)`. Instead they go to the user's data directory
+(`dirs::data_dir()` + `beautiful-stt`):
+
+| Platform | Location |
+|----------|----------|
+| **Linux**   | `$XDG_DATA_HOME/beautiful-stt/` or `~/.local/share/beautiful-stt/` |
+| **macOS**   | `~/Library/Application Support/beautiful-stt/` |
+| **Windows** | `C:\Users\<user>\AppData\Roaming\beautiful-stt\` |
+
+Layout inside that folder:
+
+```
+beautiful-stt/
+├── ggml-<model>.bin          # Whisper models
+├── ggml-silero-v5.1.2.bin    # VAD model
+└── llm_models/
+    └── <model>.gguf          # summarization LLMs
+```
+
+To free disk space or force a re-download, delete the relevant file(s); they are
+fetched again on next use.
