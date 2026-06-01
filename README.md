@@ -107,7 +107,7 @@ set -gx CXXFLAGS "-mmacosx-version-min=11.0 -std=c++17"
 set -gx CFLAGS "-mmacosx-version-min=11.0"
 set -gx MACOSX_DEPLOYMENT_TARGET 11.0
 set -gx CMAKE_OSX_DEPLOYMENT_TARGET 11.0
-CMAKE_GENERATOR="Unix Makefiles" CMAKE_POLICY_VERSION_MINIMUM=3.5 pnpm tauri build --features metal
+CMAKE_GENERATOR="Unix Makefiles" CMAKE_POLICY_VERSION_MINIMUM=3.5 pnpm tauri build
 ```
 
 ## LINUX
@@ -119,6 +119,26 @@ APPIMAGE_EXTRACT_AND_RUN=1 pnpm tauri build
 > On Debian/Ubuntu, the AppImage bundling step needs `librsvg2-dev` (provides
 > `librsvg-2.0.pc` for the linuxdeploy GTK plugin). Install it first:
 > `sudo apt install librsvg2-dev`.
+
+## WIN
+
+### GPU
+
+```Powershell
+pnpm tauri build
+```
+
+### CUDA
+```Powershell
+# first time (download whisper-cli zip)
+.\scripts\build-windows-cuda.ps1
+
+# second time  (without download zip)
+.\scripts\build-windows-cuda.ps1 -SkipDownload
+
+# diferent version of whisper.cpp
+.\scripts\build-windows-cuda.ps1 -WhisperVersion v1.8.4 -SkipDownload
+```
 
 ## Where models are stored
 
