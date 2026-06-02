@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { CloudUpload, WandSparkles, Music, Sparkles } from 'lucide-react';
+import { WandSparkles, Music, Sparkles, DownloadCloud, Computer } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { llmModels, models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
@@ -33,6 +33,9 @@ export const AudioProcessor = () => {
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
   const [outputMode, setOutputMode] = useState<'summary' | 'detailed'>('summary');
+  const [audioUrl, setAudioUrl] = useState<string>('');
+  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [activeTab, setActiveTab] = useState<string>('localFile');
 
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
@@ -76,7 +79,6 @@ export const AudioProcessor = () => {
 
   const processAudioFile = async () => {
     setIsProcessing(true);
-    setSummary('');
     setResult('');
     setSegments([]);
     setProcessStep(null);
@@ -86,6 +88,25 @@ export const AudioProcessor = () => {
     });
     setResult(response as string);
     setIsProcessing(false);
+  };
+
+  const downloadAudio = async () => {
+    setIsDownloading(true);
+    setResult('');
+    setSummary('');
+    setSegments([]);
+    setProcessStep(null);
+    const response = await invoke('download_audio', {
+      audioUrl: audioUrl,
+    });
+    setIsDownloading(false);
+    const selected = response as string;
+    setSelectedFileFilePath(selected)
+    setPreviewUnavailable(false);
+    setSelectedFileFilePath(selected);
+    const assetUrl = convertFileSrc(selected);
+    const fileName = selected.split(/[\\/]/).pop() || 'Audio';
+    setFileInfo({ name: fileName, url: assetUrl });
   };
 
   const handleSummarize = async () => {
@@ -101,7 +122,6 @@ export const AudioProcessor = () => {
         llmModel: llmModel,
         outputMode: outputMode,
       });
-      console.log('RESUMEN', response);
       setSummary(response as string);
     } catch (error) {
       console.error('Error al resumir:', error);
@@ -145,20 +165,76 @@ export const AudioProcessor = () => {
       {/* Transcription section */}
       <div className="flex flex-col gap-2">
         <SectionHeader label="Transcripción" />
-        <div className="grid grid-cols-1 lg:grid-cols-[272px_1fr] gap-2 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-2 items-start">
           <div className="flex flex-col gap-2">
             <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
-              <button
-                onClick={handleSelectFile}
-                className="group w-full border border-dashed border-line hover:border-accent rounded-lg py-5 transition-all duration-200"
-              >
-                <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
-                  <CloudUpload size={18} strokeWidth={1.25} />
-                  <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
-                    {fileInfo ? 'Cambiar archivo' : 'Seleccionar audio'}
-                  </span>
-                </div>
-              </button>
+              <div className="p-1 flex justify-center gap-3">
+                {
+                  [
+                    ['localFile', 'Archivo local'],
+                    ['downloadFile', 'Descargar de youtube o facebook'],
+                  ].map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setActiveTab(id)}
+                        className={`flex justify-center items-center gap-1 font-mono text-[10px] font-medium uppercase tracking-[0.18em] px-2.5 py-1 rounded-md transition-colors ${
+                            activeTab === id ? 'bg-accent/10 text-accent border border-accent' : 'text-muted hover:text-accent'
+                          }`}
+                      >
+                        {id === 'localFile' && (
+                          <Computer size={18} strokeWidth={1.25}/>
+                        )}
+                        {id === 'downloadFile' && (
+                          <DownloadCloud size={18} strokeWidth={1.5} />
+                        )}
+                        <span>
+                          {label}
+                        </span>
+                      </button>
+                    ))
+                }
+              </div>
+              {
+                activeTab === 'downloadFile' && (
+                  <div className='flex gap-2 flex-col justify-center items-center'>
+                    <input type="text"
+                      value={audioUrl}
+                      onChange={(e) => setAudioUrl(e.target.value)}
+                      className="group w-full bg-surface border border-line rounded-lg py-2 transition-all duration-200 p-1"
+                      placeholder="https://www.youtube.com/watch?v=9oc0SrAFrMc"
+                    />
+                    <button
+                      onClick={downloadAudio}
+                      disabled={!audioUrl || isProcessing || isDownloading}
+                      className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                        isProcessing || !audioUrl || isDownloading
+                          ? 'bg-lacre/15 text-lacre cursor-not-allowed'
+                          : 'bg-lacre text-bg hover:brightness-110 active:scale-[0.99]'
+                      }`}
+                    >
+                      <DownloadCloud size={13} strokeWidth={1.5} />
+                      {isDownloading ? 'Descargando...' : 'Descargar'}
+                    </button>
+                  </div>
+                )
+              }
+              {
+                activeTab === 'localFile' && (
+                  <div>
+                    <button
+                      onClick={handleSelectFile}
+                      className="group w-full border border-dashed border-line hover:border-accent rounded-lg py-5 transition-all duration-200"
+                    >
+                      <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
+                        <Computer size={18} strokeWidth={1.25}/>
+                        <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
+                          {fileInfo ? 'Seleccionar otro archivo desde el equipo' : 'Seleccionar audio del equipo'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                )
+              }
               {fileInfo && (
                 <div className="flex flex-col gap-2">
                   <div className="flex items-center gap-2">
@@ -229,7 +305,7 @@ export const AudioProcessor = () => {
       {result && !isProcessing && (
         <div className="flex flex-col gap-2">
           <SectionHeader label="Resumen" />
-          <div className="grid grid-cols-1 lg:grid-cols-[272px_1fr] gap-2 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-2 items-start">
             <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
               <div className="flex flex-col gap-1.5">
                 <label htmlFor="llm-model" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo LLM</label>
