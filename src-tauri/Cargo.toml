@@ -32,6 +32,6 @@ dirs = "5"
 ureq = "2"
 llama-cpp-2 = "0.1"
 hound = "3.5.1"
-symphonia = { version = "0.5", features = ["mp3", "ogg", "wav", "flac", "aac"] }
+symphonia = { version = "0.5", features = ["mp3", "ogg", "wav", "flac", "aac", "isomp4"] }
 opus = "0.3"
 ogg = "0.9"

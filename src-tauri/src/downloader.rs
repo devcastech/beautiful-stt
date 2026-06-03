@@ -20,8 +20,7 @@ impl DownloaderProcessor {
         let yt_dlp_bin = self.get_ytdlp_bin_path();
         let file_path = "/tmp/%(title)s.%(ext)s";
         let output = match Command::new(&yt_dlp_bin)
-            .arg("-x")                 // get only audio
-            .arg("--audio-format").arg("wav")
+            .arg("-f").arg("bestaudio[ext=m4a]/bestaudio[ext=mp3]/bestaudio")
             .arg("--output").arg(&file_path)
             .arg("--print").arg("after_move:filepath")
             .arg(audio_url)
