@@ -18,7 +18,6 @@ export type TranscriptSegment = {
   to_ms: number;
   text: string;
 };
-
 export const AudioProcessor = () => {
   const [selectedFilePath, setSelectedFileFilePath] = useState<string | null>(null);
   const [fileInfo, setFileInfo] = useState<{ name: string; url: string } | null>(null);
@@ -32,7 +31,6 @@ export const AudioProcessor = () => {
   const [summary, setSummary] = useState<string>('');
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
-  const [outputMode, setOutputMode] = useState<'summary' | 'detailed'>('summary');
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('localFile');
@@ -120,7 +118,7 @@ export const AudioProcessor = () => {
       const response = await invoke('summarize_transcript', {
         transcript: result,
         llmModel: llmModel,
-        outputMode: outputMode,
+        outputMode: null,
       });
       setSummary(response as string);
     } catch (error) {
@@ -265,7 +263,7 @@ export const AudioProcessor = () => {
                 >
                   {models.map((m) => (
                     <option key={m.name} value={m.name}>
-                      {m.label} — {m.description}
+                      {m.label} - {m.description}
                     </option>
                   ))}
                 </select>
@@ -322,18 +320,6 @@ export const AudioProcessor = () => {
                   ))}
                 </select>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="output-mode" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Tipo de salida</label>
-                <select
-                  id="output-mode"
-                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
-                  value={outputMode}
-                  onChange={(e) => setOutputMode(e.target.value as 'summary' | 'detailed')}
-                >
-                  <option value="summary">Resumen general</option>
-                  <option value="detailed">Detallado (datos, fechas, valores)</option>
-                </select>
-              </div>
               <button
                 onClick={handleSummarize}
                 disabled={isSummarizing}
@@ -344,7 +330,7 @@ export const AudioProcessor = () => {
                 }`}
               >
                 <Sparkles size={12} strokeWidth={1.5} />
-                {isSummarizing ? 'Generando...' : outputMode === 'detailed' ? 'Resumen detallado' : 'Resumir'}
+                {isSummarizing ? 'Generando...' : 'Resumir'}
               </button>
             </div>
 

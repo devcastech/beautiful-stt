@@ -1,3 +1,4 @@
+#![allow(dead_code, deprecated)]
 use std::fs::File;
 use std::sync::Arc;
 
