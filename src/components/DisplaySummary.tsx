@@ -25,14 +25,14 @@ export const DisplaySummary = ({
   return (
     <div
       ref={containerRef}
-      className="bg-surface border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
+      className="bg-bg border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
         <div className="flex justify-between items-center min-h-5">
           {isGenerating
             ? <div className="flex items-center gap-2">
                 <Sparkles size={12} strokeWidth={1.5} className="text-accent" />
-                <p className="text-xs text-accent">Generando...</p>
+                <p role="status" className="text-xs text-accent">Generando...</p>
               </div>
             : <div />
           }
@@ -43,7 +43,7 @@ export const DisplaySummary = ({
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
-              className="flex items-center gap-1.5 text-xs text-muted hover:text-accent transition-colors"
+              className="flex items-center gap-1.5 text-xs text-muted hover:text-lacre transition-colors"
             >
               {copied ? <Check size={12} strokeWidth={1.5} /> : <Copy size={12} strokeWidth={1.5} />}
               {copied ? 'Copiado' : 'Copiar'}
@@ -57,7 +57,14 @@ export const DisplaySummary = ({
               <span className="truncate">{progress.step}</span>
               {progress.count != null && <span className="shrink-0 ml-2">{progress.count}%</span>}
             </div>
-            <div className="w-full h-0.5 rounded-full bg-line overflow-hidden">
+            <div
+              role="progressbar"
+              aria-label={`Progreso del resumen: ${progress.step}`}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              {...(progress.count != null && { 'aria-valuenow': progress.count })}
+              className="w-full h-0.5 rounded-full bg-line overflow-hidden"
+            >
               <div
                 className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
                 style={{ width: `${progress.count != null ? progress.count : 100}%` }}

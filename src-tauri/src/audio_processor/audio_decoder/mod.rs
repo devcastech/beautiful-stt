@@ -45,22 +45,29 @@ fn decode_symphonia(path: &str) -> Result<AudioData, Box<dyn std::error::Error>>
 
     let mut format = probed.format;
     let track = format.default_track().ok_or("No track found")?;
-    let sample_rate = track.codec_params.sample_rate.ok_or("No sample rate")?;
-    let channels = track.codec_params.channels.ok_or("No channels")?.count();
+    let track_id = track.id;
 
     let mut decoder = symphonia::default::get_codecs()
         .make(&track.codec_params, &DecoderOptions::default())?;
 
     let mut samples: Vec<f32> = Vec::new();
+    let mut sample_rate: Option<u32> = track.codec_params.sample_rate;
+    let mut channels: Option<usize> = track.codec_params.channels.map(|c| c.count());
 
     while let Ok(packet) = format.next_packet() {
+        if packet.track_id() != track_id { continue; }
         if let Ok(decoded) = decoder.decode(&packet) {
             let spec = *decoded.spec();
+            if sample_rate.is_none() { sample_rate = Some(spec.rate); }
+            if channels.is_none() { channels = Some(spec.channels.count()); }
             let mut sample_buf = SampleBuffer::<f32>::new(decoded.capacity() as u64, spec);
             sample_buf.copy_interleaved_ref(decoded);
             samples.extend(sample_buf.samples());
         }
     }
+
+    let sample_rate = sample_rate.ok_or("No sample rate")?;
+    let channels = channels.unwrap_or(1);
 
     let mono = if channels == 2 {
         samples.chunks(2).map(|c| (c[0] + c[1]) / 2.0).collect()
