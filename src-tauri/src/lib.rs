@@ -7,6 +7,7 @@ mod utils;
 mod audio_processor;
 mod downloader;
 mod summarizer;
+mod summarizer_cli;
 
 #[derive(Clone, Serialize)]
 struct ProcessEvent {
@@ -58,7 +59,7 @@ async fn summarize_transcript(
             app.emit( "process", ProcessEvent { event: event.into(), step: step.into(), count, }, ).unwrap();
         });
 
-    summarizer::summarize_transcript(emit, &transcript, llm_model.as_deref(), output_mode.as_deref())
+    summarizer_cli::summarize_transcript(emit, &transcript, llm_model.as_deref(), output_mode.as_deref())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
