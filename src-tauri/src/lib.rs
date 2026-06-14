@@ -6,7 +6,6 @@ mod utils;
 #[path = "audio_processor_cli.rs"]
 mod audio_processor;
 mod downloader;
-mod summarizer;
 mod summarizer_cli;
 
 #[derive(Clone, Serialize)]
