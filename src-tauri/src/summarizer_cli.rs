@@ -28,7 +28,11 @@ fn llama_cli_archive_url() -> &'static str {
     } else if cfg!(all(target_os = "linux", target_arch = "aarch64")) {
         "https://github.com/ggml-org/llama.cpp/releases/download/b9496/llama-b9496-bin-ubuntu-arm64.tar.gz"
     } else if cfg!(all(target_os = "windows", target_arch = "x86_64")) {
-        "https://github.com/ggml-org/llama.cpp/releases/download/b9496/llama-b9496-bin-win-cpu-x64.zip"
+        if crate::utils::detect_gpu() == "CUDA" {
+            "https://github.com/ggml-org/llama.cpp/releases/download/b9496/llama-b9496-bin-win-cuda-12.4-x64.zip"
+        } else {
+            "https://github.com/ggml-org/llama.cpp/releases/download/b9496/llama-b9496-bin-win-cpu-x64.zip"
+        }
     } else {
         ""
     }
