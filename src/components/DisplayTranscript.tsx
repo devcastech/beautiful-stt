@@ -55,7 +55,7 @@ export const DisplayTranscript = ({
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
         <div className="flex justify-between items-center min-h-5">
           <div className="flex items-center gap-2">
-            {isProcessing && <p role="status" className="text-xs text-accent">Transcribiendo...</p>}
+            {isProcessing && <p role="status" className="text-xs text-accent">En proceso, esto puede tardar un par de minutos...</p>}
             {!isProcessing && hasSegments && (
               <div className="flex items-center gap-1">
                 {([

@@ -1,4 +1,19 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "beautiful-stt",
+        "width": 2000,
+        "height": 1200,
+        "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": { "x": 16, "y": 17 }
+      }
+    ]
+  },
   "bundle": {
     "macOS": {
       "frameworks": [

@@ -15,7 +15,8 @@
         "label": "main",
         "title": "beautiful speech to text",
         "width": 1100,
-        "height": 750
+        "height": 750,
+        "decorations": false
       }
     ],
     "security": {
