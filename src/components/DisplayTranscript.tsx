@@ -50,7 +50,7 @@ export const DisplayTranscript = ({
   return (
     <div
       ref={containerRef}
-      className="bg-bg border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-[480px] overflow-y-auto"
+      className="bg-bg border border-line rounded-lg min-h-64 max-h-80 lg:min-h-96 lg:max-h-120 overflow-y-auto"
     >
       <div className="sticky top-0 bg-surface border-b border-line px-4 py-3">
         <div className="flex justify-between items-center min-h-5">

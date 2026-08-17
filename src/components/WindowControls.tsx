@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { Minus, Square, Copy, X } from 'lucide-react';
-import { isMacOS, isTauriRuntime } from '../services/runtime.ts';
+import { isMacOS, isTauriRuntime } from '../services/runtime';
 
 /**
  * Custom minimize/maximize/close buttons for the frameless window.
