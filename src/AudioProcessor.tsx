@@ -130,7 +130,7 @@ export const AudioProcessor = () => {
     try {
       const selected = await open({
         multiple: false,
-        filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'opus'] }],
+        filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'ogg', 'flac', 'aac', 'opus', 'm4a'] }],
       });
 
       if (selected && typeof selected === 'string') {
@@ -292,7 +292,7 @@ export const AudioProcessor = () => {
             </div>
           </div>
 
-          <DisplayTranscript text={result} segments={segments} isProcessing={isProcessing} processStep={processStep} />
+          <DisplayTranscript text={result} segments={segments} isProcessing={isProcessing} processStep={processStep} title={fileInfo?.name} />
         </div>
       </div>
 

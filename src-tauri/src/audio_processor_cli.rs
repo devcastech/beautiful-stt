@@ -219,14 +219,30 @@ impl AudioProcessor {
                 cmd.env("DYLD_LIBRARY_PATH", &frameworks_dir);
             }
         }
+        let available_threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
 
+        let backend = crate::utils::detect_gpu();
+        let beam_size = match backend {
+            "CPU" => "2",
+            "CUDA" => "5",
+            "METAL" => "5",
+            _ => "5",
+        };
+        let language = "es";
+        let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
+        println!("[STT] available_threads={}", available_threads);
+        println!("[STT] beam_size={}", beam_size);
         cmd.arg("-m").arg(model_path.to_str().unwrap())
            .arg("-f").arg(file_path)
-           .arg("-l").arg("es")
-           .arg("-bs").arg("5")            // beam size
-           .arg("-sns")                    // suppress non-speech tokens
+           .arg("-l").arg(language)
+           .arg("-bs").arg(beam_size)
+           .arg("-t").arg(available_threads.to_string())
            .arg("--prompt")
-           .arg("Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.")
+           .arg(prompt)
+           .arg("-et").arg("2.4")          // entropy threshold
+           .arg("-sns")                    // suppress non-speech tokens
            .arg("-pp")                     // print-progress: emite % al stderr
            .arg("-oj")                     // output JSON estructurado (segmentos + offsets ms)
            .arg("-of").arg(&json_base)     // ruta base del/los archivo(s) de salida
@@ -236,9 +252,9 @@ impl AudioProcessor {
         if let Some(vad_path) = vad_model_path {
             cmd.arg("--vad")
                .arg("-vm").arg(vad_path.to_str().unwrap())
-               .arg("-vt").arg("0.5")      // vad threshold (default)
+               .arg("-vt").arg("0.7")      // vad threshold (default)
                .arg("-vspd").arg("300")    // min speech duration ms
-               .arg("-vsd").arg("100")     // min silence duration ms
+               .arg("-vsd").arg("500")     // min silence duration ms
                .arg("-vp").arg("30");      // speech pad ms
         }
 
