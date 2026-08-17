@@ -35,7 +35,7 @@ async fn process_audio_file(app: AppHandle, file_path: String, whisper_model: &s
 }
 
 #[tauri::command]
-async fn download_audio(app: AppHandle, audio_url: String) -> Result<String, String> {
+async fn download_audio(app: AppHandle, audio_url: String) -> Result<downloader::DownloadResult, String> {
     let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
         app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
     });

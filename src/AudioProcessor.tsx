@@ -96,15 +96,12 @@ export const AudioProcessor = () => {
     setProcessStep(null);
     const response = await invoke('download_audio', {
       audioUrl: audioUrl,
-    });
+    }) as { title: string; path: string; };
     setIsDownloading(false);
-    const selected = response as string;
-    setSelectedFileFilePath(selected)
     setPreviewUnavailable(false);
-    setSelectedFileFilePath(selected);
-    const assetUrl = convertFileSrc(selected);
-    const fileName = selected.split(/[\\/]/).pop() || 'Audio';
-    setFileInfo({ name: fileName, url: assetUrl });
+    setSelectedFileFilePath(response.path);
+    const assetUrl = convertFileSrc(response.path);
+    setFileInfo({ name: response.title || 'Audio', url: assetUrl });
   };
 
   const handleSummarize = async () => {
@@ -239,7 +236,7 @@ export const AudioProcessor = () => {
                     <Music size={12} className="text-accent shrink-0" strokeWidth={1.5} />
                     <p className="text-base text-muted truncate">{fileInfo.name}</p>
                     <span className="font-mono text-xs uppercase tracking-wider text-accent border border-line rounded px-1.5 py-0.5 shrink-0">
-                      {fileInfo.name.split('.').pop()}
+                      {selectedFilePath?.split('.').pop()}
                     </span>
                   </div>
                   {!previewUnavailable && (
