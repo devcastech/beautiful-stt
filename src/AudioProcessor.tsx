@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
-import { WandSparkles, Music, Sparkles, DownloadCloud, Computer } from 'lucide-react';
+import { WandSparkles, Music, DownloadCloud, Computer } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { llmModels, models } from './lib/constants';
+import { models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
-import { DisplaySummary } from './components/DisplaySummary';
 
 export type ProcessEvent = {
   event: string;
@@ -26,11 +25,8 @@ export const AudioProcessor = () => {
   const [result, setResult] = useState<string>('');
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
-  const [model, setModel] = useState<string>(models[1].name);
+  const [model, setModel] = useState<string>(models[2].name);
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
-  const [summary, setSummary] = useState<string>('');
-  const [isSummarizing, setIsSummarizing] = useState(false);
-  const [llmModel, setLlmModel] = useState<string>(llmModels[0].name);
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('localFile');
@@ -38,7 +34,7 @@ export const AudioProcessor = () => {
   useEffect(() => {
     const unlisten = listen<ProcessEvent>('process', (event) => {
       console.log(event);
-      if (['process', 'summary_progress'].includes(event.payload.event)) {
+      if (['process'].includes(event.payload.event)) {
         setProcessStep({
           event: event.payload.event,
           step: event.payload.step,
@@ -47,9 +43,6 @@ export const AudioProcessor = () => {
       }
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
-      }
-      if (event.payload.event === 'summary_segment') {
-        setSummary((prev) => prev + event.payload.step);
       }
       if (event.payload.event === 'transcript_structured') {
         try {
@@ -66,10 +59,7 @@ export const AudioProcessor = () => {
 
   useEffect(() => {
     async function detectGPU() {
-      const response = await invoke('detect_gpu', {
-        filePath: selectedFilePath,
-        whisperModel: model,
-      });
+      const response = await invoke('detect_gpu');
       setResourcesUsed(response as string);
     }
     detectGPU();
@@ -91,7 +81,6 @@ export const AudioProcessor = () => {
   const downloadAudio = async () => {
     setIsDownloading(true);
     setResult('');
-    setSummary('');
     setSegments([]);
     setProcessStep(null);
     const response = await invoke('download_audio', {
@@ -104,27 +93,6 @@ export const AudioProcessor = () => {
     setFileInfo({ name: response.title || 'Audio', url: assetUrl });
   };
 
-  const handleSummarize = async () => {
-    if (!result) return;
-
-    setIsSummarizing(true);
-    setSummary('');
-    setProcessStep(null);
-
-    try {
-      const response = await invoke('summarize_transcript', {
-        transcript: result,
-        llmModel: llmModel,
-        outputMode: null,
-      });
-      setSummary(response as string);
-    } catch (error) {
-      console.error('Error al resumir:', error);
-      setSummary('Error al generar el resumen: ' + error);
-    } finally {
-      setIsSummarizing(false);
-    }
-  };
 
   const handleSelectFile = async () => {
     try {
@@ -160,9 +128,9 @@ export const AudioProcessor = () => {
       {/* Transcription section */}
       <div className="flex flex-col gap-2">
         <SectionHeader label="Transcripción" />
-        <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-2 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-2 items-start">
           <div className="flex flex-col gap-2">
-            <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
+            <div className="rounded-lg p-4 flex flex-col gap-3">
               <div className="p-1 flex justify-center gap-3">
                 {
                   [
@@ -280,7 +248,7 @@ export const AudioProcessor = () => {
                 </button>
               )}
             </div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex justify-center items-center gap-1.5 flex-wrap">
               <span className="text-[10px] font-mono px-2 py-1 rounded-md bg-surface border border-line text-muted">
                 {model.replace('.bin', '')}
               </span>
@@ -295,49 +263,6 @@ export const AudioProcessor = () => {
           <DisplayTranscript text={result} segments={segments} isProcessing={isProcessing} processStep={processStep} title={fileInfo?.name} />
         </div>
       </div>
-
-      {/* Summary section — visible after transcription */}
-      {result && !isProcessing && (
-        <div className="flex flex-col gap-2">
-          <SectionHeader label="Resumen" />
-          <div className="grid grid-cols-1 lg:grid-cols-[350px_1fr] gap-2 items-start">
-            <div className="bg-surface border border-line rounded-lg p-4 flex flex-col gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="llm-model" className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]">Modelo LLM</label>
-                <select
-                  id="llm-model"
-                  className="w-full px-3 py-2 rounded-lg border border-line hover:border-accent/50 focus:border-accent bg-bg outline-none text-sm transition-colors"
-                  value={llmModel}
-                  onChange={(e) => setLlmModel(e.target.value)}
-                >
-                  {llmModels.map((m) => (
-                    <option key={m.name} value={m.name}>
-                      {m.label} — {m.description}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <button
-                onClick={handleSummarize}
-                disabled={isSummarizing}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                  isSummarizing
-                    ? 'border-lacre/30 text-lacre/50 cursor-not-allowed'
-                    : 'border-lacre text-lacre hover:bg-lacre hover:text-bg active:scale-[0.99]'
-                }`}
-              >
-                <Sparkles size={12} strokeWidth={1.5} />
-                {isSummarizing ? 'Generando...' : 'Resumir'}
-              </button>
-            </div>
-
-            {(summary || isSummarizing) && (
-              <DisplaySummary text={summary} isGenerating={isSummarizing} processStep={processStep} />
-            )}
-          </div>
-        </div>
-      )}
-
     </div>
   );
 };
