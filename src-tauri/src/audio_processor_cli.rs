@@ -54,13 +54,13 @@ impl AudioProcessor {
     pub fn process(&self) -> String {
         println!("[STT] process() start — file={} model={}", self.file_path, self.whisper_model);
         (self.emit)("process", &format!("validando disponibilidad del modelo {}", self.whisper_model), None);
-        if let Err(e) = self.ensure_model(&*self.emit, &self.whisper_model) {
+        if let Err(e) = self.ensure_model(&self.whisper_model) {
             println!("[STT] ensure_model failed: {}", e);
             (self.emit)("process", "hubo un error descargando el modelo", None);
             return format!("failed to ensure model: {}", e);
         }
 
-        let vad_path = match self.ensure_vad_model(&*self.emit) {
+        let vad_path = match self.ensure_vad_model() {
             Ok(path) => Some(path),
             Err(e) => {
                 println!("VAD model not available, proceeding without VAD: {}", e);
@@ -152,30 +152,110 @@ impl AudioProcessor {
         crate::utils::models_base_dir().join(name)
     }
 
-    pub fn ensure_model(&self, emit: &dyn Fn(&str, &str, Option<u32>), whisper_model: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn streaming_download(
+        &self,
+        whisper_model: &str,
+        model_url: &str,
+        model_path: std::path::PathBuf
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        (self.emit)("process_download_assets", &format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
+        let response = ureq::get(&model_url).call()?;
+        let total_bytes = response
+            .header("Content-Length")
+            .and_then(|v| v.parse::<u64>().ok());
+
+        println!("total_bytes {:?}", total_bytes);
+        (self.emit)(
+            "process_download_assets",
+            &format!("Descargando modelo{}...",
+                total_bytes
+                    .map(|b| format!(" ({:.1} GB)", b as f64 / 1_073_741_824.0))
+                    .unwrap_or_default()
+            ),
+            Some(0),
+        );
+        let mut file = File::create(&model_path)?;
+        let mut reader = response.into_reader();
+        let mut buf = vec![0u8; 512 * 1024]; // 512KB chunks
+        let mut downloaded: u64 = 0;
+        let mut last_pct = 0u32;
+
+        let result = (|| -> Result<(), Box<dyn std::error::Error>> {
+            loop {
+                let n = reader.read(&mut buf)?;
+                if n == 0 {
+                    break;
+                }
+                std::io::Write::write_all(&mut file, &buf[..n])?;
+                downloaded += n as u64;
+
+                if let Some(total) = total_bytes {
+                    let pct = ((downloaded as f64 / total as f64) * 100.0) as u32;
+                    if pct != last_pct {
+                        (self.emit)(
+                            "process_download_assets",
+                            &format!(
+                                "Descargando modelo...({}) {:.0}/{:.0} MB",
+                                whisper_model,
+                                downloaded as f64 / 1_048_576.0,
+                                total as f64 / 1_048_576.0
+                            ),
+                            Some(pct),
+                        );
+                        last_pct = pct;
+                    }
+                }
+            }
+            Ok(())
+        })();
+
+        if let Err(e) = result {
+            let _ = std::fs::remove_file(&model_path);
+            return Err(format!("Descarga interrumpida: {}", e).into());
+        }
+        (self.emit)("process_download_assets", "Modelo descargado", Some(100));
+        Ok(())
+    }
+
+    pub fn ensure_model(&self, whisper_model: &str) -> Result<(), Box<dyn std::error::Error>> {
         let model_path = self.get_model_path(whisper_model);
         if !model_path.exists() {
             let model_url = format!(
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
                 whisper_model
             );
-            emit("process", &format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
-            let mut response = ureq::get(&model_url).call()?.into_reader();
-            let mut file = File::create(&model_path)?;
-            std::io::copy(&mut response, &mut file)?;
+            let _ = self.streaming_download(whisper_model, &model_url, model_path);
         }
         Ok(())
     }
 
-    pub fn ensure_vad_model(&self, emit: &dyn Fn(&str, &str, Option<u32>)) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    pub fn ensure_vad_model(&self) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
         let vad_path = self.get_model_path(VAD_MODEL_NAME);
         if !vad_path.exists() {
-            emit("process", "Descargando modelo VAD (solo una vez, ~885KB)", None);
-            let mut response = ureq::get(VAD_MODEL_URL).call()?.into_reader();
-            let mut file = File::create(&vad_path)?;
-            std::io::copy(&mut response, &mut file)?;
+            let _ = self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone());
         }
         Ok(vad_path)
+    }
+
+    pub fn ensure_default_models(&self) -> String {
+        println!("[STT] ensure_default_models() start — file={} model={}", self.file_path, self.whisper_model);
+        if let Err(e) = self.ensure_model(&self.whisper_model) {
+            println!("[STT] ensure_model failed: {}", e);
+            (self.emit)("process", "hubo un error descargando el modelo", None);
+            return format!("failed to ensure model: {}", e);
+        }
+
+        let _vad_path = match self.ensure_vad_model() {
+            Ok(path) => Some(path),
+            Err(e) => {
+                println!("VAD model not available, proceeding without VAD: {}", e);
+                (self.emit)("process", "VAD no disponible, continuando sin filtro de voz", None);
+                None
+            }
+        };
+        (self.emit)("process", "", None);
+
+        String::from("Success")
     }
 
     pub fn prepare_wav(&self, file_path: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {

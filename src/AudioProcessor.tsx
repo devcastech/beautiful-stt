@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { WandSparkles, Music, DownloadCloud, Computer } from 'lucide-react';
@@ -25,6 +25,7 @@ export const AudioProcessor = () => {
   const [result, setResult] = useState<string>('');
   const [segments, setSegments] = useState<TranscriptSegment[]>([]);
   const [processStep, setProcessStep] = useState<ProcessEvent | null>(null);
+  const [processDownloadAssetsStep, setProcessDownloadAssetsStep] = useState<ProcessEvent | null>(null);
   const [model, setModel] = useState<string>(models[2].name);
   const [resourcesUsed, setResourcesUsed] = useState<string>('');
   const [audioUrl, setAudioUrl] = useState<string>('');
@@ -36,6 +37,13 @@ export const AudioProcessor = () => {
       console.log(event);
       if (['process'].includes(event.payload.event)) {
         setProcessStep({
+          event: event.payload.event,
+          step: event.payload.step,
+          ...(event.payload?.count != null && { count: event.payload.count }),
+        });
+      }
+      if (['process_download_assets'].includes(event.payload.event)) {
+        setProcessDownloadAssetsStep({
           event: event.payload.event,
           step: event.payload.step,
           ...(event.payload?.count != null && { count: event.payload.count }),
@@ -64,6 +72,23 @@ export const AudioProcessor = () => {
     }
     detectGPU();
   }, []);
+
+  const hasStartedEnsureModels  = useRef(false)
+  useEffect(() => {
+    if(hasStartedEnsureModels.current) return
+    hasStartedEnsureModels.current = true
+    async function ensureDefaultModels() {
+      console.log('hasStartedEnsureModels.current', hasStartedEnsureModels.current)
+      await invoke('ensure_default_models', {
+        filePath: "",
+        whisperModel: model,
+      });
+      setProcessStep(null);
+      setProcessDownloadAssetsStep(null);
+    }
+    ensureDefaultModels();
+  }, []);
+
 
   const processAudioFile = async () => {
     setIsProcessing(true);
@@ -262,6 +287,35 @@ export const AudioProcessor = () => {
 
           <DisplayTranscript text={result} segments={segments} isProcessing={isProcessing} processStep={processStep} title={fileInfo?.name} />
         </div>
+        {
+          processDownloadAssetsStep && (
+            <div className="flex flex-col gap-1 mt-2">
+              <div className="flex justify-between text-xs text-muted">
+                <span className="truncate">{processDownloadAssetsStep.step}</span>
+                {processDownloadAssetsStep.count != null && (
+                  <span className="shrink-0 ml-2">{processDownloadAssetsStep.count}%</span>
+                )}
+              </div>
+              <div
+                role="processDownloadAssetsStepbar"
+                aria-label={`Progreso de descarga de assets: ${processDownloadAssetsStep.step}`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                {...(processDownloadAssetsStep.count != null && {
+                  "aria-valuenow": processDownloadAssetsStep.count,
+                })}
+                className="w-full h-0.5 rounded-full bg-line overflow-hidden"
+              >
+                <div
+                  className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
+                  style={{
+                    width: `${processDownloadAssetsStep.count != null ? processDownloadAssetsStep.count : 100}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )
+  }
       </div>
     </div>
   );
