@@ -235,6 +235,7 @@ export const AudioProcessor = () => {
                   {!previewUnavailable && (
                     <audio
                       controls
+                      preload="metadata"
                       src={fileInfo.url}
                       aria-label={`Vista previa de ${fileInfo.name}`}
                       className="w-full h-8"
