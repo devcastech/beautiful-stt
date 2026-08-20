@@ -56,7 +56,9 @@ async fn download_audio(app: AppHandle, audio_url: String) -> Result<downloader:
         emit,
         audio_url
     );
-    Ok(downloader.download())
+    tauri::async_runtime::spawn_blocking(move || downloader.download())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

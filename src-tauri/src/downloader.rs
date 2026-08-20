@@ -43,11 +43,14 @@ impl DownloaderProcessor {
                 .arg("--output")
                 .arg(file_path_str.as_ref())
                 .arg("--force-overwrites")
+                .arg("--socket-timeout")
+                .arg("30")
                 .arg("--print")
                 .arg("%(title)s")
                 .arg("--print")
                 .arg("after_move:filepath")
                 .arg(&audio_url)
+                .stdin(std::process::Stdio::null())
                 .output()
             {
                 Ok(o) => o,
