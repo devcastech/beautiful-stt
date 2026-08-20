@@ -5,20 +5,20 @@ export const models = [
     description: 'Extra rápido · menos preciso · 77.7MB',
   },
   {
+    name: 'ggml-small-q8_0.bin',
+    label: 'Small Q8_0',
+    description: 'Rápido · menos preciso · 264MB',
+  },
+  {
     name: 'ggml-small.bin',
     label: 'Small',
     description: 'Rápido · preciso · 488MB (recomendado)',
     default: true,
   },
   {
-    name: 'ggml-medium-q8_0.bin',
-    label: 'Medium',
-    description: 'Moderado · preciso · 823MB',
-  },
-  {
     name: 'ggml-large-v3-turbo.bin',
     label: 'Large Turbo',
-    description: 'Moderado · más preciso · 1.62GB',
+    description: 'Lento · más preciso · 1.62GB (requiere mas recursos)',
   },
   {
     name: 'ggml-large-v3.bin',

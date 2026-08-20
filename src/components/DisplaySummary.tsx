@@ -2,6 +2,9 @@ import { Check, Copy, Sparkles } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { ProcessEvent } from '../AudioProcessor';
 
+/**
+ * @Deprecated
+ */
 export const DisplaySummary = ({
   text,
   isGenerating,

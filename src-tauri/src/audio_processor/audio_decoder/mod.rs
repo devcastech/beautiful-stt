@@ -51,8 +51,11 @@ fn decode_symphonia(path: &str) -> Result<AudioData, Box<dyn std::error::Error>>
         .make(&track.codec_params, &DecoderOptions::default())?;
 
     let mut samples: Vec<f32> = Vec::new();
-    let mut sample_rate: Option<u32> = track.codec_params.sample_rate;
-    let mut channels: Option<usize> = track.codec_params.channels.map(|c| c.count());
+    // Use the actual decoded spec rate, not codec_params.sample_rate.
+    // HE-AAC reports 48000 Hz in the header but symphonia decodes the LC core at 24000 Hz,
+    // so trusting codec_params causes whisper to receive audio at 2x speed.
+    let mut sample_rate: Option<u32> = None;
+    let mut channels: Option<usize> = None;
 
     while let Ok(packet) = format.next_packet() {
         if packet.track_id() != track_id { continue; }

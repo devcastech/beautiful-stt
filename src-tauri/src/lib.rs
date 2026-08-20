@@ -35,7 +35,20 @@ async fn process_audio_file(app: AppHandle, file_path: String, whisper_model: &s
 }
 
 #[tauri::command]
-async fn download_audio(app: AppHandle, audio_url: String) -> Result<String, String> {
+async fn ensure_default_models(app: AppHandle, file_path: String, whisper_model: &str) -> Result<String, String> {
+    let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
+        app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
+    });
+    let processor = audio_processor::AudioProcessor::new(
+        emit,
+        file_path,
+        whisper_model.to_string()
+    );
+    Ok(processor.ensure_default_models())
+}
+
+#[tauri::command]
+async fn download_audio(app: AppHandle, audio_url: String) -> Result<downloader::DownloadResult, String> {
     let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
         app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
     });
@@ -43,7 +56,9 @@ async fn download_audio(app: AppHandle, audio_url: String) -> Result<String, Str
         emit,
         audio_url
     );
-    Ok(downloader.download())
+    tauri::async_runtime::spawn_blocking(move || downloader.download())
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -64,10 +79,12 @@ async fn summarize_transcript(
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .invoke_handler(tauri::generate_handler![detect_gpu, process_audio_file, summarize_transcript, download_audio])
+        .invoke_handler(tauri::generate_handler![detect_gpu, process_audio_file, ensure_default_models, summarize_transcript, download_audio])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
