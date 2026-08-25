@@ -1,6 +1,8 @@
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { ProcessEvent, TranscriptSegment } from "../AudioProcessor";
+import { alertDialog, saveTextFileAs } from '../services/dialog';
+import { isTauriRuntime } from '../services/runtime';
 
 const formatTime = (ms: number) => {
   const totalSec = Math.floor(ms / 1000);
@@ -53,6 +55,28 @@ export const DisplayTranscript = ({
     }
   }, [segments]);
 
+  const saveTranscript = async () => {
+    console.log("Guardando transcripción...")
+    if (!title || !copyContent) {
+      console.log("No se puede guardar una transcripción sin título y texto.");
+      return;
+    };
+    try {
+      const fileName = title.replace(/\s+/g, '-').toLowerCase()
+      if (isTauriRuntime()) {
+        const saved = await saveTextFileAs(`${fileName}.txt`, copyContent);
+        if (saved) {
+          alertDialog("Transcripción guardada exitosamente.", "Éxito");
+        } else {
+          alertDialog("No se pudo guardar la transcripción.", "Error");
+        }
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+
   return (
     <div
       ref={containerRef}
@@ -93,21 +117,32 @@ export const DisplayTranscript = ({
             )}
           </div>
           {(text || hasSegments) && !isProcessing && (
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(copyContent);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-              className="flex items-center gap-1.5 text-xs text-muted hover:text-lacre transition-colors"
-            >
-              {copied ? (
-                <Check size={12} strokeWidth={1.5} />
-              ) : (
-                <Copy size={12} strokeWidth={1.5} />
-              )}
-              {copied ? "Copiado" : "Copiar"}
-            </button>
+            <div className="flex justify-center items-center gap-2">
+              <button
+                onClick={() => {
+                  saveTranscript();
+                }}
+                className="flex items-center gap-1.5 text-xs text-muted hover:text-lacre transition-colors"
+              >
+                <Save size={12} strokeWidth={1.5} />
+                Guardar
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(copyContent);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="flex items-center gap-1.5 text-xs text-muted hover:text-lacre transition-colors"
+              >
+                {copied ? (
+                  <Check size={12} strokeWidth={1.5} />
+                ) : (
+                  <Copy size={12} strokeWidth={1.5} />
+                )}
+                {copied ? "Copiado" : "Copiar"}
+              </button>
+            </div>
           )}
         </div>
 
