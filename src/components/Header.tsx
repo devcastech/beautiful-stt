@@ -5,7 +5,7 @@ export const Header = () => {
   return (
     <header
       data-tauri-drag-region
-      className={`flex justify-between items-center gap-3 h-12 shrink-0 bg-surface/60 pr-2 ${isMacOS() ? "pl-19.5" : "pl-8"}`}
+      className={`flex justify-between items-center gap-3 h-10 shrink-0 bg-surface/60 pr-2 ${isMacOS() ? "pl-22" : "pl-8"}`}
     >
       <div data-tauri-drag-region className="flex items-center gap-3">
         <img
