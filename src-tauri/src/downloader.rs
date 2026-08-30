@@ -44,7 +44,7 @@ impl DownloaderProcessor {
                 .arg(file_path_str.as_ref())
                 .arg("--force-overwrites")
                 .arg("--socket-timeout")
-                .arg("30")
+                .arg("10")
                 .arg("--print")
                 .arg("%(title)s")
                 .arg("--print")

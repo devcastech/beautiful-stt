@@ -312,8 +312,6 @@ impl AudioProcessor {
         };
         let language = "es";
         let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
-        println!("[STT] available_threads={}", available_threads);
-        println!("[STT] beam_size={}", beam_size);
         cmd.arg("-m").arg(model_path.to_str().unwrap())
            .arg("-f").arg(file_path)
            .arg("-l").arg(language)
@@ -325,6 +323,7 @@ impl AudioProcessor {
            .arg("-sns")                    // suppress non-speech tokens
            .arg("-pp")                     // print-progress: emite % al stderr
            .arg("-oj")                     // output JSON estructurado (segmentos + offsets ms)
+           .arg("-ojf")                    // Incluye probabilidad
            .arg("-of").arg(&json_base)     // ruta base del/los archivo(s) de salida
            .stdout(Stdio::piped())
            .stderr(Stdio::piped());
@@ -338,9 +337,8 @@ impl AudioProcessor {
                .arg("-vp").arg("30");      // speech pad ms
         }
 
-        // Debug: mostrar comando exacto
-        let cmd_str = format!("{} -m {} -f {}", whisper_bin.display(), model_path.display(), file_path);
-        (self.emit)("process", &format!("cmd: {}", cmd_str), None);
+        //let cmd_str = format!("{} -m {} -f {}", whisper_bin.display(), model_path.display(), file_path);
+        //(self.emit)("process", &format!("cmd: {}", cmd_str), None);
 
         let mut child = match cmd.spawn() {
             Ok(c) => c,
@@ -400,7 +398,6 @@ impl AudioProcessor {
         let _ = std::fs::remove_file(&json_path);
 
         if text.is_empty() {
-            // Emitir las últimas líneas de stderr para diagnosticar
             let error_hint: String = stderr_lines.iter().rev().take(3)
                 .cloned().collect::<Vec<_>>().into_iter().rev()
                 .collect::<Vec<_>>().join(" | ");

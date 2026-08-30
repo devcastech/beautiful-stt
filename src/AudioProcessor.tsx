@@ -156,7 +156,7 @@ export const AudioProcessor = () => {
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-2 items-start">
           <div className="flex flex-col gap-2">
             <div className="rounded-lg p-4 flex flex-col gap-3">
-              <div className="p-1 flex justify-center gap-3">
+              <div className="flex justify-center gap-3 border-b border-line">
                 {
                   [
                     ['localFile', 'Archivo local'],
@@ -165,8 +165,8 @@ export const AudioProcessor = () => {
                       <button
                         key={id}
                         onClick={() => setActiveTab(id)}
-                        className={`flex justify-center items-center gap-1 font-mono text-[10px] font-medium uppercase tracking-[0.18em] px-2.5 py-1 rounded-md transition-colors ${
-                            activeTab === id ? 'bg-accent/10 text-accent border border-accent' : 'text-muted hover:text-accent'
+                        className={`flex justify-center items-center gap-1 font-mono text-[10px] font-medium uppercase tracking-[0.18em] px-2.5 py-1 rounded-t-md transition-colors ${
+                            activeTab === id ? 'bg-accent/10 text-accent border-b border-accent font-bold' : 'text-muted hover:text-accent'
                           }`}
                       >
                         {id === 'localFile' && (
