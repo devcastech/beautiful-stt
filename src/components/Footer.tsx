@@ -41,9 +41,6 @@ export const Footer = () => {
           </div>
         )}
 
-        {updater?.status === "error" && (
-          <span className="text-[11px] text-muted">Update check failed</span>
-        )}
       </div>
       <div className="flex justify-center items-center gap-1.5">
         <span className="text-xs text-muted">by</span>
