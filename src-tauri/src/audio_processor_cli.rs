@@ -1,9 +1,9 @@
-use std::{fs::File, time::Instant};
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::process::{Command, Stdio};
+use std::sync::Arc;
 use std::thread;
-use serde::{Deserialize, Serialize};
+use std::{fs::File, time::Instant};
 #[path = "audio_processor/audio_decoder/mod.rs"]
 mod audio_decoder;
 
@@ -38,7 +38,8 @@ struct WhisperOffsets {
 }
 
 const VAD_MODEL_NAME: &str = "ggml-silero-v6.2.0.bin";
-const VAD_MODEL_URL: &str = "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
+const VAD_MODEL_URL: &str =
+    "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
 
 pub struct AudioProcessor {
     emit: EmitType,
@@ -48,12 +49,23 @@ pub struct AudioProcessor {
 
 impl AudioProcessor {
     pub fn new(emit: EmitType, file_path: String, whisper_model: String) -> Self {
-        AudioProcessor { emit, file_path, whisper_model }
+        AudioProcessor {
+            emit,
+            file_path,
+            whisper_model,
+        }
     }
 
     pub fn process(&self) -> String {
-        println!("[STT] process() start — file={} model={}", self.file_path, self.whisper_model);
-        (self.emit)("process", &format!("validando disponibilidad del modelo {}", self.whisper_model), None);
+        println!(
+            "[STT] process() start — file={} model={}",
+            self.file_path, self.whisper_model
+        );
+        (self.emit)(
+            "process",
+            &format!("validando disponibilidad del modelo {}", self.whisper_model),
+            None,
+        );
         if let Err(e) = self.ensure_model(&self.whisper_model) {
             println!("[STT] ensure_model failed: {}", e);
             (self.emit)("process", "hubo un error descargando el modelo", None);
@@ -64,7 +76,11 @@ impl AudioProcessor {
             Ok(path) => Some(path),
             Err(e) => {
                 println!("VAD model not available, proceeding without VAD: {}", e);
-                (self.emit)("process", "VAD no disponible, continuando sin filtro de voz", None);
+                (self.emit)(
+                    "process",
+                    "VAD no disponible, continuando sin filtro de voz",
+                    None,
+                );
                 None
             }
         };
@@ -74,7 +90,10 @@ impl AudioProcessor {
         // Whisper-cli soporta nativamente: wav, mp3, flac, ogg
         // Para otros formatos (m4a, opus, etc.) convertimos a WAV temporal
         let ext = std::path::Path::new(&self.file_path)
-            .extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("")
+            .to_lowercase();
         println!("[STT] file ext={}", ext);
         let native_formats = ["wav", "mp3", "flac"];
         let (audio_path, temp_wav) = if native_formats.contains(&ext.as_str()) {
@@ -91,7 +110,11 @@ impl AudioProcessor {
                 }
                 Err(e) => {
                     println!("[STT] prepare_wav failed: {}", e);
-                    (self.emit)("process", &format!("Error decodificando audio: {}", e), None);
+                    (self.emit)(
+                        "process",
+                        &format!("Error decodificando audio: {}", e),
+                        None,
+                    );
                     return format!("error: {}", e);
                 }
             }
@@ -105,12 +128,20 @@ impl AudioProcessor {
         }
 
         if let Ok(json) = serde_json::to_string(&transcription.segments) {
-            println!("[STT] structured output ({} segmentos): {}", transcription.segments.len(), json);
+            println!(
+                "[STT] structured output ({} segmentos): {}",
+                transcription.segments.len(),
+                json
+            );
             (self.emit)("transcript_structured", &json, None);
         }
 
         let elapsed = total.elapsed().as_secs();
-        (self.emit)("process", &format!("Proceso completado en {:?} segundos", elapsed), None);
+        (self.emit)(
+            "process",
+            &format!("Proceso completado en {:?} segundos", elapsed),
+            None,
+        );
         transcription.text
     }
 
@@ -118,7 +149,11 @@ impl AudioProcessor {
     /// En producción (bundle): junto al ejecutable (dylibs en ../Frameworks/).
     /// En desarrollo: homebrew o sistema (tiene sus propios dylibs).
     pub fn get_whisper_bin_path(&self) -> std::path::PathBuf {
-        let bin_name = if cfg!(target_os = "windows") { "whisper-cli.exe" } else { "whisper-cli" };
+        let bin_name = if cfg!(target_os = "windows") {
+            "whisper-cli.exe"
+        } else {
+            "whisper-cli"
+        };
 
         let exe_dir = std::env::current_exe()
             .ok()
@@ -131,19 +166,25 @@ impl AudioProcessor {
         #[cfg(not(debug_assertions))]
         {
             let next_to_exe = exe_dir.join(bin_name);
-            if next_to_exe.exists() { return next_to_exe; }
+            if next_to_exe.exists() {
+                return next_to_exe;
+            }
         }
 
         // macOS: homebrew (ARM y Intel)
         #[cfg(target_os = "macos")]
         for prefix in &["/opt/homebrew/bin", "/usr/local/bin"] {
             let p = std::path::PathBuf::from(prefix).join(bin_name);
-            if p.exists() { return p; }
+            if p.exists() {
+                return p;
+            }
         }
 
         // Fallback: next to exe (producción sin Frameworks, o PATH del sistema)
         let next_to_exe = exe_dir.join(bin_name);
-        if next_to_exe.exists() { return next_to_exe; }
+        if next_to_exe.exists() {
+            return next_to_exe;
+        }
 
         std::path::PathBuf::from(bin_name)
     }
@@ -156,9 +197,13 @@ impl AudioProcessor {
         &self,
         whisper_model: &str,
         model_url: &str,
-        model_path: std::path::PathBuf
+        model_path: std::path::PathBuf,
     ) -> Result<(), Box<dyn std::error::Error>> {
-        (self.emit)("process_download_assets", &format!("aprovisionando modelo de IA localmente {}", whisper_model), None);
+        (self.emit)(
+            "process_download_assets",
+            &format!("aprovisionando modelo de IA localmente {}", whisper_model),
+            None,
+        );
         let response = ureq::get(&model_url).call()?;
         let total_bytes = response
             .header("Content-Length")
@@ -167,7 +212,8 @@ impl AudioProcessor {
         println!("total_bytes {:?}", total_bytes);
         (self.emit)(
             "process_download_assets",
-            &format!("Descargando modelo{}...",
+            &format!(
+                "Descargando modelo{}...",
                 total_bytes
                     .map(|b| format!(" ({:.1} GB)", b as f64 / 1_073_741_824.0))
                     .unwrap_or_default()
@@ -238,7 +284,10 @@ impl AudioProcessor {
     }
 
     pub fn ensure_default_models(&self) -> String {
-        println!("[STT] ensure_default_models() start — file={} model={}", self.file_path, self.whisper_model);
+        println!(
+            "[STT] ensure_default_models() start — file={} model={}",
+            self.file_path, self.whisper_model
+        );
         if let Err(e) = self.ensure_model(&self.whisper_model) {
             println!("[STT] ensure_model failed: {}", e);
             (self.emit)("process", "hubo un error descargando el modelo", None);
@@ -249,7 +298,11 @@ impl AudioProcessor {
             Ok(path) => Some(path),
             Err(e) => {
                 println!("VAD model not available, proceeding without VAD: {}", e);
-                (self.emit)("process", "VAD no disponible, continuando sin filtro de voz", None);
+                (self.emit)(
+                    "process",
+                    "VAD no disponible, continuando sin filtro de voz",
+                    None,
+                );
                 None
             }
         };
@@ -258,7 +311,10 @@ impl AudioProcessor {
         String::from("Success")
     }
 
-    pub fn prepare_wav(&self, file_path: &str) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
+    pub fn prepare_wav(
+        &self,
+        file_path: &str,
+    ) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
         let audio = audio_decoder::decode(file_path)?;
         let temp_path = std::env::temp_dir().join("beautiful_stt_input.wav");
         let spec = hound::WavSpec {
@@ -275,14 +331,27 @@ impl AudioProcessor {
         Ok(temp_path)
     }
 
-    pub fn transcribe(&self, file_path: &str, vad_model_path: Option<&std::path::Path>) -> TranscriptionResult {
+    pub fn transcribe(
+        &self,
+        file_path: &str,
+        vad_model_path: Option<&std::path::Path>,
+    ) -> TranscriptionResult {
         let whisper_bin = self.get_whisper_bin_path();
         let model_path = self.get_model_path(&self.whisper_model);
 
-        let json_base = std::env::temp_dir().join(format!("beautiful_stt_out_{}", std::process::id()));
+        let json_base =
+            std::env::temp_dir().join(format!("beautiful_stt_out_{}", std::process::id()));
         let json_path = json_base.with_extension("json");
-        println!("[STT] whisper_bin={} exists={}", whisper_bin.display(), whisper_bin.exists());
-        println!("[STT] model_path={} exists={}", model_path.display(), model_path.exists());
+        println!(
+            "[STT] whisper_bin={} exists={}",
+            whisper_bin.display(),
+            whisper_bin.exists()
+        );
+        println!(
+            "[STT] model_path={} exists={}",
+            model_path.display(),
+            model_path.exists()
+        );
 
         let mut cmd = Command::new(&whisper_bin);
 
@@ -292,10 +361,17 @@ impl AudioProcessor {
         {
             let frameworks_dir = std::env::current_exe()
                 .ok()
-                .and_then(|p| p.parent().and_then(|p| p.parent()).map(|p| p.join("Frameworks")))
+                .and_then(|p| {
+                    p.parent()
+                        .and_then(|p| p.parent())
+                        .map(|p| p.join("Frameworks"))
+                })
                 .unwrap_or_default();
             if frameworks_dir.exists() {
-                println!("[STT] setting DYLD_LIBRARY_PATH={}", frameworks_dir.display());
+                println!(
+                    "[STT] setting DYLD_LIBRARY_PATH={}",
+                    frameworks_dir.display()
+                );
                 cmd.env("DYLD_LIBRARY_PATH", &frameworks_dir);
             }
         }
@@ -312,29 +388,41 @@ impl AudioProcessor {
         };
         let language = "es";
         let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
-        cmd.arg("-m").arg(model_path.to_str().unwrap())
-           .arg("-f").arg(file_path)
-           .arg("-l").arg(language)
-           .arg("-bs").arg(beam_size)
-           .arg("-t").arg(available_threads.to_string())
-           .arg("--prompt")
-           .arg(prompt)
-           .arg("-et").arg("2.4")          // entropy threshold
-           .arg("-sns")                    // suppress non-speech tokens
-           .arg("-pp")                     // print-progress: emite % al stderr
-           .arg("-oj")                     // output JSON estructurado (segmentos + offsets ms)
-           .arg("-ojf")                    // Incluye probabilidad
-           .arg("-of").arg(&json_base)     // ruta base del/los archivo(s) de salida
-           .stdout(Stdio::piped())
-           .stderr(Stdio::piped());
+        cmd.arg("-m")
+            .arg(model_path.to_str().unwrap())
+            .arg("-f")
+            .arg(file_path)
+            .arg("-l")
+            .arg(language)
+            .arg("-bs")
+            .arg(beam_size)
+            .arg("-t")
+            .arg(available_threads.to_string())
+            .arg("--prompt")
+            .arg(prompt)
+            .arg("-et")
+            .arg("2.4") // entropy threshold
+            .arg("-sns") // suppress non-speech tokens
+            .arg("-pp") // print-progress: emite % al stderr
+            .arg("-oj") // output JSON estructurado (segmentos + offsets ms)
+            .arg("-ojf") // Incluye probabilidad
+            .arg("-of")
+            .arg(&json_base) // ruta base del/los archivo(s) de salida
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
 
         if let Some(vad_path) = vad_model_path {
             cmd.arg("--vad")
-               .arg("-vm").arg(vad_path.to_str().unwrap())
-               .arg("-vt").arg("0.7")      // vad threshold (default)
-               .arg("-vspd").arg("300")    // min speech duration ms
-               .arg("-vsd").arg("500")     // min silence duration ms
-               .arg("-vp").arg("30");      // speech pad ms
+                .arg("-vm")
+                .arg(vad_path.to_str().unwrap())
+                .arg("-vt")
+                .arg("0.7") // vad threshold (default)
+                .arg("-vspd")
+                .arg("300") // min speech duration ms
+                .arg("-vsd")
+                .arg("500") // min silence duration ms
+                .arg("-vp")
+                .arg("30"); // speech pad ms
         }
 
         //let cmd_str = format!("{} -m {} -f {}", whisper_bin.display(), model_path.display(), file_path);
@@ -343,9 +431,16 @@ impl AudioProcessor {
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
-                let msg = format!("Error al ejecutar whisper-cli ({}): {}", whisper_bin.display(), e);
+                let msg = format!(
+                    "Error al ejecutar whisper-cli ({}): {}",
+                    whisper_bin.display(),
+                    e
+                );
                 (self.emit)("process", &msg, None);
-                return TranscriptionResult { text: msg, segments: Vec::new() };
+                return TranscriptionResult {
+                    text: msg,
+                    segments: Vec::new(),
+                };
             }
         };
 
@@ -375,7 +470,11 @@ impl AudioProcessor {
             let Ok(line) = line else { continue };
             if let Some(text) = parse_whisper_segment(&line) {
                 if has_transcription_loop(text) {
-                    (self.emit)("process", &format!("segmento {} omitido (loop)", segment_idx + 1), None);
+                    (self.emit)(
+                        "process",
+                        &format!("segmento {} omitido (loop)", segment_idx + 1),
+                        None,
+                    );
                     segment_idx += 1;
                     continue;
                 }
@@ -398,9 +497,16 @@ impl AudioProcessor {
         let _ = std::fs::remove_file(&json_path);
 
         if text.is_empty() {
-            let error_hint: String = stderr_lines.iter().rev().take(3)
-                .cloned().collect::<Vec<_>>().into_iter().rev()
-                .collect::<Vec<_>>().join(" | ");
+            let error_hint: String = stderr_lines
+                .iter()
+                .rev()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
+                .into_iter()
+                .rev()
+                .collect::<Vec<_>>()
+                .join(" | ");
             if !error_hint.is_empty() {
                 (self.emit)("process", &format!("whisper stderr: {}", error_hint), None);
             }
@@ -414,7 +520,11 @@ fn parse_whisper_json(json_path: &std::path::Path) -> Vec<TranscriptSegment> {
     let content = match std::fs::read_to_string(json_path) {
         Ok(c) => c,
         Err(e) => {
-            println!("[STT] whisper json no encontrado en {}: {}", json_path.display(), e);
+            println!(
+                "[STT] whisper json no encontrado en {}: {}",
+                json_path.display(),
+                e
+            );
             return Vec::new();
         }
     };
