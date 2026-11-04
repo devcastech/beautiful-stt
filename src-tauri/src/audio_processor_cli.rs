@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
+use std::path::Path;
 use std::process::{Command, Stdio};
+#[cfg(target_os = "linux")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
 use std::{fs::File, time::Instant};
@@ -35,6 +38,16 @@ struct WhisperJsonSegment {
 struct WhisperOffsets {
     from: u64,
     to: u64,
+}
+
+#[cfg(target_os = "linux")]
+static VULKAN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+struct WhisperRun {
+    result: TranscriptionResult,
+    success: bool,
+    used_gpu: bool,
 }
 
 const VAD_MODEL_NAME: &str = "ggml-silero-v6.2.0.bin";
@@ -87,8 +100,6 @@ impl AudioProcessor {
 
         let total = Instant::now();
 
-        // Whisper-cli soporta nativamente: wav, mp3, flac, ogg
-        // Para otros formatos (m4a, opus, etc.) convertimos a WAV temporal
         let ext = std::path::Path::new(&self.file_path)
             .extension()
             .and_then(|e| e.to_str())
@@ -336,7 +347,46 @@ impl AudioProcessor {
         file_path: &str,
         vad_model_path: Option<&std::path::Path>,
     ) -> TranscriptionResult {
+        #[cfg(target_os = "linux")]
+        {
+            if let Some(vulkan_bin) = self.get_vulkan_bin_path() {
+                (self.emit)("process", "iniciando transcripción con GPU (Vulkan)", None);
+                match self.run_whisper(&vulkan_bin, file_path, vad_model_path) {
+                    Ok(run) if run.success => {
+                        if !run.used_gpu {
+                            VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
+                        }
+                        println!("[STT] vulkan run ok, used_gpu={}", run.used_gpu);
+                        return run.result;
+                    }
+                    _ => {
+                        VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
+                        (self.emit)("transcript_reset", "", None);
+                        (self.emit)("process", "GPU no disponible, usando CPU", None);
+                    }
+                }
+            }
+        }
+
         let whisper_bin = self.get_whisper_bin_path();
+        match self.run_whisper(&whisper_bin, file_path, vad_model_path) {
+            Ok(run) => run.result,
+            Err(msg) => {
+                (self.emit)("process", &msg, None);
+                TranscriptionResult {
+                    text: msg,
+                    segments: Vec::new(),
+                }
+            }
+        }
+    }
+
+    fn run_whisper(
+        &self,
+        whisper_bin: &std::path::Path,
+        file_path: &str,
+        vad_model_path: Option<&std::path::Path>,
+    ) -> Result<WhisperRun, String> {
         let model_path = self.get_model_path(&self.whisper_model);
 
         let json_base =
@@ -353,96 +403,16 @@ impl AudioProcessor {
             model_path.exists()
         );
 
-        let mut cmd = Command::new(&whisper_bin);
+        let mut cmd = Command::new(whisper_bin);
+        self.build_whisper_cli(&mut cmd, &model_path, file_path, &json_base, vad_model_path);
 
-        // En producción macOS, los dylibs están en ../Frameworks/ relativo al exe.
-        // Aunque el rpath está patched, forzamos DYLD_LIBRARY_PATH por robustez.
-        #[cfg(all(target_os = "macos", not(debug_assertions)))]
-        {
-            let frameworks_dir = std::env::current_exe()
-                .ok()
-                .and_then(|p| {
-                    p.parent()
-                        .and_then(|p| p.parent())
-                        .map(|p| p.join("Frameworks"))
-                })
-                .unwrap_or_default();
-            if frameworks_dir.exists() {
-                println!(
-                    "[STT] setting DYLD_LIBRARY_PATH={}",
-                    frameworks_dir.display()
-                );
-                cmd.env("DYLD_LIBRARY_PATH", &frameworks_dir);
-            }
-        }
-        let available_threads = std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(4);
-
-        let backend = crate::utils::detect_gpu();
-        let beam_size = match backend {
-            "CPU" => "2",
-            "CUDA" => "5",
-            "METAL" => "5",
-            _ => "5",
-        };
-        let language = "es";
-        let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
-        cmd.arg("-m")
-            .arg(model_path.to_str().unwrap())
-            .arg("-f")
-            .arg(file_path)
-            .arg("-l")
-            .arg(language)
-            .arg("-bs")
-            .arg(beam_size)
-            .arg("-t")
-            .arg(available_threads.to_string())
-            .arg("--prompt")
-            .arg(prompt)
-            .arg("-et")
-            .arg("2.4") // entropy threshold
-            .arg("-sns") // suppress non-speech tokens
-            .arg("-pp") // print-progress: emite % al stderr
-            .arg("-oj") // output JSON estructurado (segmentos + offsets ms)
-            .arg("-ojf") // Incluye probabilidad
-            .arg("-of")
-            .arg(&json_base) // ruta base del/los archivo(s) de salida
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped());
-
-        if let Some(vad_path) = vad_model_path {
-            cmd.arg("--vad")
-                .arg("-vm")
-                .arg(vad_path.to_str().unwrap())
-                .arg("-vt")
-                .arg("0.7") // vad threshold (default)
-                .arg("-vspd")
-                .arg("300") // min speech duration ms
-                .arg("-vsd")
-                .arg("500") // min silence duration ms
-                .arg("-vp")
-                .arg("30"); // speech pad ms
-        }
-
-        //let cmd_str = format!("{} -m {} -f {}", whisper_bin.display(), model_path.display(), file_path);
-        //(self.emit)("process", &format!("cmd: {}", cmd_str), None);
-
-        let mut child = match cmd.spawn() {
-            Ok(c) => c,
-            Err(e) => {
-                let msg = format!(
-                    "Error al ejecutar whisper-cli ({}): {}",
-                    whisper_bin.display(),
-                    e
-                );
-                (self.emit)("process", &msg, None);
-                return TranscriptionResult {
-                    text: msg,
-                    segments: Vec::new(),
-                };
-            }
-        };
+        let mut child = cmd.spawn().map_err(|e| {
+            format!(
+                "Error al ejecutar whisper-cli ({}): {}",
+                whisper_bin.display(),
+                e
+            )
+        })?;
 
         // Thread separado para leer progreso de stderr sin bloquear stdout
         let stderr = child.stderr.take().expect("Failed to capture stderr");
@@ -489,6 +459,8 @@ impl AudioProcessor {
 
         let stderr_lines = stderr_thread.join().unwrap_or_default();
         let status = child.wait();
+        let success = matches!(status, Ok(s) if s.success());
+        let used_gpu = stderr_lines.iter().any(|l| l.contains("using Vulkan"));
         println!("[STT] whisper exit status: {:?}", status);
         let text = full_text.trim().to_string();
 
@@ -512,7 +484,103 @@ impl AudioProcessor {
             }
         }
 
-        TranscriptionResult { text, segments }
+        Ok(WhisperRun {
+            result: TranscriptionResult { text, segments },
+            success,
+            used_gpu,
+        })
+    }
+
+    fn build_whisper_cli(
+        &self,
+        cmd: &mut Command,
+        model_path: &Path,
+        file_path: &str,
+        json_base: &Path,
+        vad_model_path: Option<&Path>,
+    ) {
+        // En producción macOS, los dylibs están en ../Frameworks/ relativo al exe.
+        // Aunque el rpath está patched, forzamos DYLD_LIBRARY_PATH por robustez.
+        #[cfg(all(target_os = "macos", not(debug_assertions)))]
+        {
+            let frameworks_dir = std::env::current_exe()
+                .ok()
+                .and_then(|p| {
+                    p.parent()
+                        .and_then(|p| p.parent())
+                        .map(|p| p.join("Frameworks"))
+                })
+                .unwrap_or_default();
+            if frameworks_dir.exists() {
+                println!(
+                    "[STT] setting DYLD_LIBRARY_PATH={}",
+                    frameworks_dir.display()
+                );
+                cmd.env("DYLD_LIBRARY_PATH", &frameworks_dir);
+            }
+        }
+        let available_threads = std::thread::available_parallelism()
+            .map(|n| n.get())
+            .unwrap_or(4);
+
+        let beam_size = Self::get_beam_size();
+        let language = "es";
+        let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
+        cmd.arg("-m")
+            .arg(model_path.to_str().unwrap())
+            .arg("-f")
+            .arg(file_path)
+            .arg("-l")
+            .arg(language)
+            .arg("-bs")
+            .arg(beam_size)
+            .arg("-t")
+            .arg(available_threads.to_string())
+            .arg("--prompt")
+            .arg(prompt)
+            .arg("-et")
+            .arg("2.4") // entropy threshold
+            .arg("-sns") // suppress non-speech tokens
+            .arg("-pp") // print-progress: emite % al stderr
+            .arg("-oj") // output JSON estructurado (segmentos + offsets ms)
+            .arg("-ojf") // Incluye probabilidad
+            .arg("-of")
+            .arg(json_base) // ruta base del/los archivo(s) de salida
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        if let Some(vad_path) = vad_model_path {
+            cmd.arg("--vad")
+                .arg("-vm")
+                .arg(vad_path.to_str().unwrap())
+                .arg("-vt")
+                .arg("0.7") // vad threshold (default)
+                .arg("-vspd")
+                .arg("300") // min speech duration ms
+                .arg("-vsd")
+                .arg("500") // min silence duration ms
+                .arg("-vp")
+                .arg("30"); // speech pad ms
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    fn get_vulkan_bin_path(&self) -> Option<std::path::PathBuf> {
+        if std::env::var_os("BSTT_DISABLE_GPU").is_some()
+            || VULKAN_UNAVAILABLE.load(Ordering::Relaxed)
+        {
+            return None;
+        }
+        let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+        let bin = exe_dir.join("whisper-cli-vulkan");
+        bin.exists().then_some(bin)
+    }
+
+    fn get_beam_size() -> &'static str {
+        match crate::utils::detect_gpu() {
+            "CPU" => "2",
+            _ => "5",
+        }
     }
 }
 
