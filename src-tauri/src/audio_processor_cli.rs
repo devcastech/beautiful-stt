@@ -139,11 +139,6 @@ impl AudioProcessor {
         }
 
         if let Ok(json) = serde_json::to_string(&transcription.segments) {
-            println!(
-                "[STT] structured output ({} segmentos): {}",
-                transcription.segments.len(),
-                json
-            );
             (self.emit)("transcript_structured", &json, None);
         }
 
@@ -525,7 +520,7 @@ impl AudioProcessor {
 
         let beam_size = Self::get_beam_size();
         let language = "es";
-        let prompt = "Transcripción profesional de audio. Contenido formal, sin publicidad, sin menciones a redes sociales ni suscripciones.";
+        let prompt = "";
         cmd.arg("-m")
             .arg(model_path.to_str().unwrap())
             .arg("-f")
