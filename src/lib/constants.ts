@@ -16,6 +16,11 @@ export const models = [
     default: true,
   },
   {
+    name: 'ggml-large-v3-turbo-q8_0.bin',
+    label: 'Large Turbo Q8',
+    description: 'Rápido · preciso · 874MB',
+  },
+  {
     name: 'ggml-large-v3-turbo.bin',
     label: 'Large Turbo',
     description: 'Lento · más preciso · 1.62GB (requiere mas recursos)',

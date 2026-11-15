@@ -1,0 +1,9 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/whisper-cli",
+      "binaries/whisper-cli-vulkan",
+      "binaries/yt-dlp"
+    ]
+  }
+}

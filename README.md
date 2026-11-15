@@ -31,16 +31,17 @@ This is a problem when your audio contains:
 - AI-powered summarization via local LLM (`llama-completion`)
 - Dark mode and accessibility support
 - Automatic noise reduction
-- GPU acceleration (Metal on macOS, CUDA on Windows/Linux)
+- GPU acceleration (Metal on macOS, Vulkan on Windows/Linux with automatic CPU fallback, optional CUDA build on Windows)
 - Uses from tiny to large-v3 Whisper models depending on available resources
 
 ## Bundled binaries
 
-Beautiful STT ships three CLI binaries alongside the app, no manual installation needed:
+Beautiful STT ships these CLI binaries alongside the app, no manual installation needed:
 
 | Binary | Purpose | Project |
 |--------|---------|---------|
-| `whisper-cli` | Speech-to-text transcription | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) |
+| `whisper-cli` | Speech-to-text transcription (CPU, Metal on macOS) | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) |
+| `whisper-cli-vulkan` | Same, GPU-accelerated via Vulkan (Windows/Linux) | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) |
 | `llama-completion` | Local LLM inference for summarization | [llama.cpp](https://github.com/ggerganov/llama.cpp) |
 | `yt-dlp` | Audio download from YouTube / Facebook URLs | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
 
@@ -98,12 +99,18 @@ Choose the package format for your distribution:
 | Component | Minimum | Recommended |
 |-----------|---------|-------------|
 | RAM | 8 GB | 16 GB |
-| GPU VRAM | 4 GB | 6+ GB |
+| GPU | none (CPU works) | 4+ GB VRAM |
 | Storage | 6 GB (for models) | 12 GB available SSD |
 
 ### Supported GPUs
 - **macOS**: Apple Silicon (M1/M2/M3) with Metal
-- **Windows/Linux**: NVIDIA GPUs with CUDA
+- **Windows/Linux**: any GPU with a Vulkan driver (AMD, Intel, NVIDIA). The app
+  tries the GPU first and falls back to CPU automatically. NVIDIA cards can
+  also use a dedicated CUDA build on Windows.
+
+> Integrated AMD GPUs on Windows gain little: the driver only gives the GPU the
+> VRAM reserved by the BIOS (often 512 MB) and larger models run from system
+> RAM. Details and workarounds in [BUILD.md](BUILD.md#gpu-at-runtime-windowslinux).
 
 ## First Run
 
@@ -116,6 +123,7 @@ Open source - MIT License
 ## Contributing
 
 Contributions are welcome! Feel free to open issues or submit pull requests.
+To build the app or rebuild the bundled binaries, see [BUILD.md](BUILD.md).
 
 ## Next Steps
 
@@ -137,46 +145,6 @@ Contributions are welcome! Feel free to open issues or submit pull requests.
 ### Longer term
 - **Global shortcut / system plugin**  A system-wide hotkey to start recording from any app, similar to Whisper Flow or SuperWhisper. Tauri supports global shortcuts.
 - **Timestamps in the transcript**  Whisper produces per-segment timestamps internally but they aren't surfaced in the UI. Useful for navigating long audio (click text → jump to that minute).
-
-## Build from source
-## MAC OS
-```bash
-set -gx CXXFLAGS "-mmacosx-version-min=11.0 -std=c++17"
-set -gx CFLAGS "-mmacosx-version-min=11.0"
-set -gx MACOSX_DEPLOYMENT_TARGET 11.0
-set -gx CMAKE_OSX_DEPLOYMENT_TARGET 11.0
-CMAKE_GENERATOR="Unix Makefiles" CMAKE_POLICY_VERSION_MINIMUM=3.5 pnpm tauri build
-```
-
-## LINUX
-
-```bash
-APPIMAGE_EXTRACT_AND_RUN=1 pnpm tauri build
-```
-
-> On Debian/Ubuntu, the AppImage bundling step needs `librsvg2-dev` (provides
-> `librsvg-2.0.pc` for the linuxdeploy GTK plugin). Install it first:
-> `sudo apt install librsvg2-dev`.
-
-## WIN
-
-### GPU
-
-```Powershell
-pnpm tauri build
-```
-
-### CUDA
-```Powershell
-# first time (download whisper-cli zip)
-.\scripts\build-windows-cuda.ps1
-
-# second time  (without download zip)
-.\scripts\build-windows-cuda.ps1 -SkipDownload
-
-# diferent version of whisper.cpp
-.\scripts\build-windows-cuda.ps1 -WhisperVersion v1.8.4 -SkipDownload
-```
 
 ## Where models are stored
 

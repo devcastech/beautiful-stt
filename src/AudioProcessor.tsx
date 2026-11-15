@@ -49,6 +49,10 @@ export const AudioProcessor = () => {
           ...(event.payload?.count != null && { count: event.payload.count }),
         });
       }
+      if (event.payload.event === 'transcript_reset') {
+        setResult('');
+        setSegments([]);
+      }
       if (event.payload.event === 'transcript_segment') {
         setResult((prev) => prev + event.payload.step);
       }
