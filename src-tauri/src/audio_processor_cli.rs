@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 use std::process::{Command, Stdio};
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -40,10 +40,10 @@ struct WhisperOffsets {
     to: u64,
 }
 
-#[cfg(target_os = "linux")]
+#[cfg(any(target_os = "linux", target_os = "windows"))]
 static VULKAN_UNAVAILABLE: AtomicBool = AtomicBool::new(false);
 
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
 struct WhisperRun {
     result: TranscriptionResult,
     success: bool,
@@ -342,7 +342,7 @@ impl AudioProcessor {
         file_path: &str,
         vad_model_path: Option<&std::path::Path>,
     ) -> TranscriptionResult {
-        #[cfg(target_os = "linux")]
+        #[cfg(any(target_os = "linux", target_os = "windows"))]
         {
             if let Some(vulkan_bin) = self.get_vulkan_bin_path() {
                 (self.emit)("process", "iniciando transcripción con GPU (Vulkan)", None);
@@ -559,15 +559,20 @@ impl AudioProcessor {
         }
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(any(target_os = "linux", target_os = "windows"))]
     fn get_vulkan_bin_path(&self) -> Option<std::path::PathBuf> {
         if std::env::var_os("BSTT_DISABLE_GPU").is_some()
             || VULKAN_UNAVAILABLE.load(Ordering::Relaxed)
         {
             return None;
         }
+        let bin_name = if cfg!(target_os = "windows") {
+            "whisper-cli-vulkan.exe"
+        } else {
+            "whisper-cli-vulkan"
+        };
         let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-        let bin = exe_dir.join("whisper-cli-vulkan");
+        let bin = exe_dir.join(bin_name);
         bin.exists().then_some(bin)
     }
 
