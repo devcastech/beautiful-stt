@@ -151,9 +151,6 @@ impl AudioProcessor {
         transcription.text
     }
 
-    /// Resuelve la ruta del binario whisper-cli.
-    /// En producción (bundle): junto al ejecutable (dylibs en ../Frameworks/).
-    /// En desarrollo: homebrew o sistema (tiene sus propios dylibs).
     pub fn get_whisper_bin_path(&self) -> std::path::PathBuf {
         let bin_name = if cfg!(target_os = "windows") {
             "whisper-cli.exe"
@@ -166,9 +163,6 @@ impl AudioProcessor {
             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
             .unwrap_or_default();
 
-        // En producción el binario bundleado va primero (dylibs en ../Frameworks/ listos).
-        // En dev NO usamos el binario copiado por Tauri en target/debug/ porque sus rpaths
-        // apuntan a ../Frameworks/ que no existe en modo dev — usamos homebrew/sistema primero.
         #[cfg(not(debug_assertions))]
         {
             let next_to_exe = exe_dir.join(bin_name);
@@ -186,7 +180,6 @@ impl AudioProcessor {
             }
         }
 
-        // Fallback: next to exe (producción sin Frameworks, o PATH del sistema)
         let next_to_exe = exe_dir.join(bin_name);
         if next_to_exe.exists() {
             return next_to_exe;
@@ -494,8 +487,6 @@ impl AudioProcessor {
         json_base: &Path,
         vad_model_path: Option<&Path>,
     ) {
-        // En producción macOS, los dylibs están en ../Frameworks/ relativo al exe.
-        // Aunque el rpath está patched, forzamos DYLD_LIBRARY_PATH por robustez.
         #[cfg(all(target_os = "macos", not(debug_assertions)))]
         {
             let frameworks_dir = std::env::current_exe()
