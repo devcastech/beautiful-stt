@@ -1,11 +1,15 @@
+import { useState } from "react";
 import "./App.css";
 import { AudioProcessor } from "./AudioProcessor";
 import Layout from "./layout";
+import { Settings } from "./Settings";
 
 function App() {
+  const [tab, _setTab] = useState("transcript");
   return (
     <Layout>
-      <AudioProcessor />
+      {tab === "transcript" && <AudioProcessor />}
+      {tab === "settings" && <Settings />}
     </Layout>
   );
 }

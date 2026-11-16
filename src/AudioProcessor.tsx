@@ -5,6 +5,7 @@ import { WandSparkles, Music, DownloadCloud, Computer } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
 import { models } from './lib/constants';
 import { DisplayTranscript } from './components/DisplayTranscript';
+import { SectionHeader } from './components/SectionHeader';
 
 export type ProcessEvent = {
   event: string;
@@ -143,13 +144,6 @@ export const AudioProcessor = () => {
       console.error(error);
     }
   };
-
-  const SectionHeader = ({ label }: { label: string }) => (
-    <div className="flex items-center gap-3">
-      <h2 className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-accent shrink-0">{label}</h2>
-      <div className="h-px flex-1 bg-line" />
-    </div>
-  );
 
   return (
     <div className="w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">

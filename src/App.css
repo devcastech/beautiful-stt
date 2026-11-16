@@ -12,7 +12,7 @@
   --color-muted: #6f695d;   /* tinta gris — texto secundario */
   --color-accent: #2d4a3e;  /* verde tinta — acento estructural (eyebrows) */
   --color-lacre: #b8351f;   /* rojo lacre — acento cálido (timestamps, CTAs) */
-  --color-line: #ddd6c8;    /* envejecido — bordes */
+  --color-line: #e8e2d7;    /* envejecido — bordes sutiles */
 
   --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
@@ -21,7 +21,7 @@
 /* Tinta nocturna — paleta ergonómica para dark mode.
    - Fondo profundo y superficies sutiles: ambiente oscuro y sobrio.
    - Texto crema legible sin halación; cuerpo ~16:1 sobre el fondo.
-   - Bordes visibles (~2.8:1) para separar componentes del fondo.
+   - Bordes muy sutiles: separan sin competir con el contenido.
    - Acentos cálidos conservados (verde salvia + terracota). */
 :root[data-theme="dark"] {
   --color-bg: #0c0b09;      /* tinta profunda — ambiente oscuro */
@@ -30,7 +30,7 @@
   --color-muted: #a8a18f;   /* tinta gris cálida — secundario */
   --color-accent: #a8c9b6;  /* verde salvia — acento estructural */
   --color-lacre: #d49a82;   /* terracota — acento cálido (CTAs, timestamps) */
-  --color-line: #5f584d;    /* borde visible sobre el fondo profundo */
+  --color-line: #1f1c18;    /* borde sutil sobre el fondo profundo */
 }
 
 :root {

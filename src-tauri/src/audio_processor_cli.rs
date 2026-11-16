@@ -276,6 +276,7 @@ impl AudioProcessor {
 
     pub fn ensure_vad_model(&self) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
         let vad_path = self.get_model_path(VAD_MODEL_NAME);
+        println!("[STT] ensure_vad_model() vad_path={}", vad_path.display());
         if !vad_path.exists() {
             let _ = self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone());
         }

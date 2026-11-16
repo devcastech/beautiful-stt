@@ -6,6 +6,7 @@ mod utils;
 #[path = "audio_processor_cli.rs"]
 mod audio_processor;
 mod downloader;
+mod commands;
 
 #[derive(Clone, Serialize)]
 struct ProcessEvent {
@@ -80,7 +81,8 @@ pub fn run() {
             process_audio_file,
             ensure_default_models,
             download_audio,
-            save_text_file
+            save_text_file,
+            commands::settings::get_models
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
