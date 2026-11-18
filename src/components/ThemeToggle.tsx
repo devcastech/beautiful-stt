@@ -13,7 +13,7 @@ export const ThemeToggle = () => {
       aria-label={label}
       aria-pressed={isDark}
       title={label}
-      className="inline-flex items-center justify-center w-7 h-7 rounded-md border border-line text-muted hover:text-accent hover:border-accent/60 transition-colors"
+      className="inline-flex items-center justify-center w-7 h-7 rounded-md text-muted hover:text-accent hover:border-accent/60 transition-colors"
     >
       {isDark ? <Sun size={12} strokeWidth={1.5} /> : <Moon size={12} strokeWidth={1.5} />}
     </button>
