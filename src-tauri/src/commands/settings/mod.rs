@@ -122,3 +122,19 @@ pub async fn get_models() -> Result<Vec<ModelInfo>, String> {
 //    models.sort_by(|a, b| a.size.cmp(&b.size));
 //    Ok(models)
 //}
+
+#[tauri::command]
+pub async fn delete_model(model: &str) -> Result<String, String> {
+    let model = DEFAULT_MODELS
+        .iter()
+        .find(|m| m.name == model)
+        .ok_or_else(|| format!("Unknown model: {model}"))?;
+
+    let model_path = crate::utils::models_base_dir().join(model.name);
+
+    match std::fs::remove_file(&model_path) {
+        Ok(()) => Ok("Deleted".to_string()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok("Deleted".to_string()),
+        Err(e) => Err(format!("Could not delete {}: {e}", model.name)),
+    }
+}

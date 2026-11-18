@@ -82,7 +82,8 @@ pub fn run() {
             ensure_default_models,
             download_audio,
             save_text_file,
-            commands::settings::get_models
+            commands::settings::get_models,
+            commands::settings::delete_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

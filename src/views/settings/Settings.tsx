@@ -8,8 +8,11 @@ export const Settings = () => {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [tab, setTab] = useState<SettingsTab>(TABS.PERFORMANCE);
 
-  useEffect(() => {
+  const getAvailableModels = () => {
     getModelList().then(setModels).catch(console.error);
+  };
+  useEffect(() => {
+    getAvailableModels();
   }, []);
 
   return (
@@ -24,7 +27,7 @@ export const Settings = () => {
               {/*pendiente implementar*/}
             </Activity>
             <Activity mode={tab === TABS.MODELS ? "visible" : "hidden"}>
-              <ModelsTable models={models} />
+              <ModelsTable models={models} onRefresh={getAvailableModels} />
             </Activity>
           </div>
         </div>
