@@ -1,6 +1,6 @@
 import { Check, Copy, Save } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import type { ProcessEvent, TranscriptSegment } from "../AudioProcessor";
+import type { ProcessEvent, TranscriptSegment } from "../views/transcript/AudioProcessor";
 import { alertDialog, saveTextFileAs } from '../services/dialog';
 import { isTauriRuntime } from '../services/runtime';
 

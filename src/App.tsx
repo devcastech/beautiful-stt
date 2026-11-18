@@ -1,5 +1,5 @@
 import "./App.css";
-import { AudioProcessor } from "./AudioProcessor";
+import { AudioProcessor } from "./views/transcript/AudioProcessor";
 import Layout from "./layout";
 import { Settings } from "./views/settings/Settings";
 import { VIEWS, ViewProvider, useView } from "./hooks/useView";

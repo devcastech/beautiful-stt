@@ -3,9 +3,9 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 import { WandSparkles, Music, DownloadCloud, Computer } from 'lucide-react';
 import { listen } from '@tauri-apps/api/event';
-import { models } from './lib/constants';
-import { DisplayTranscript } from './components/DisplayTranscript';
-import { SectionHeader } from './components/SectionHeader';
+import { models } from '../../lib/constants';
+import { DisplayTranscript } from '../../components/DisplayTranscript';
+import { SectionHeader } from '../../components/SectionHeader';
 
 export type ProcessEvent = {
   event: string;
