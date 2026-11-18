@@ -7,6 +7,7 @@ import { DisplayTranscript } from "../../components/DisplayTranscript";
 import { SectionHeader } from "../../components/SectionHeader";
 import { getModelList, ModelInfo } from "../../services/getModels";
 import { Select } from "../../components/Select";
+import { DownloadSteps } from "./components/DownloadSteps";
 
 export type ProcessEvent = {
   event: string;
@@ -40,6 +41,7 @@ export const AudioProcessor = () => {
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>("localFile");
+  const [startingApp, setStartingApp] = useState<boolean>(false);
 
   useEffect(() => {
     getModelList()
@@ -101,6 +103,7 @@ export const AudioProcessor = () => {
 
   const hasStartedEnsureModels = useRef(false);
   useEffect(() => {
+    if (!model) return;
     if (hasStartedEnsureModels.current) return;
     hasStartedEnsureModels.current = true;
     async function ensureDefaultModels() {
@@ -108,15 +111,21 @@ export const AudioProcessor = () => {
         "hasStartedEnsureModels.current",
         hasStartedEnsureModels.current,
       );
-      await invoke("ensure_default_models", {
+      setStartingApp(true);
+      const response = await invoke("ensure_default_models", {
         filePath: "",
         whisperModel: model,
       });
+      console.log("response", response);
+      setStartingApp(false);
+      if (response !== "Success") {
+        alert("problema iniciando");
+      }
       setProcessStep(null);
       setProcessDownloadAssetsStep(null);
     }
     ensureDefaultModels();
-  }, []);
+  }, [model]);
 
   const processAudioFile = async () => {
     setIsProcessing(true);
@@ -171,10 +180,27 @@ export const AudioProcessor = () => {
       console.error(error);
     }
   };
+  if (startingApp) {
+    return (
+      <div className="w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">
+        <div className="flex flex-col gap-2">
+          <SectionHeader label="Transcripción" />
+          <p className="text-muted my-4">
+            Se están realizando las configuraciones iniciales, esto tomará solo
+            un momento.
+          </p>
+          {processDownloadAssetsStep && (
+            <DownloadSteps
+              processDownloadAssetsStep={processDownloadAssetsStep}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">
-      {/* Transcription section */}
       <div className="flex flex-col gap-2">
         <SectionHeader label="Transcripción" />
         <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-2 items-start">
@@ -317,33 +343,9 @@ export const AudioProcessor = () => {
           />
         </div>
         {processDownloadAssetsStep && (
-          <div className="flex flex-col gap-1 mt-2">
-            <div className="flex justify-between text-xs text-muted">
-              <span className="truncate">{processDownloadAssetsStep.step}</span>
-              {processDownloadAssetsStep.count != null && (
-                <span className="shrink-0 ml-2">
-                  {processDownloadAssetsStep.count}%
-                </span>
-              )}
-            </div>
-            <div
-              role="processDownloadAssetsStepbar"
-              aria-label={`Progreso de descarga de assets: ${processDownloadAssetsStep.step}`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              {...(processDownloadAssetsStep.count != null && {
-                "aria-valuenow": processDownloadAssetsStep.count,
-              })}
-              className="w-full h-0.5 rounded-full bg-line overflow-hidden"
-            >
-              <div
-                className="h-full rounded-full bg-accent transition-all duration-500 ease-out"
-                style={{
-                  width: `${processDownloadAssetsStep.count != null ? processDownloadAssetsStep.count : 100}%`,
-                }}
-              />
-            </div>
-          </div>
+          <DownloadSteps
+            processDownloadAssetsStep={processDownloadAssetsStep}
+          />
         )}
       </div>
     </div>
