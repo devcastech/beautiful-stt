@@ -2,6 +2,8 @@ import { Download } from "lucide-react";
 import { useAppVersion } from "../hooks/useAppVersion";
 import { ThemeToggle } from "./ThemeToggle";
 import { useUpdater } from "../hooks/useUpdater";
+import { SettingsToggle } from "./SettingsToggle";
+
 export const Footer = () => {
   const version = useAppVersion();
   const updater = useUpdater();
@@ -53,8 +55,9 @@ export const Footer = () => {
           eduar.tech
         </a>
       </div>
-      <div className="flex justify-end">
+      <div className="flex justify-end items-center gap-2">
         <ThemeToggle />
+        <SettingsToggle />
       </div>
     </footer>
   );
