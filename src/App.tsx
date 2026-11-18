@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./App.css";
 import { AudioProcessor } from "./AudioProcessor";
 import Layout from "./layout";
-import { Settings } from "./Settings";
+import { Settings } from "./views/settings/Settings";
 
 function App() {
   const [tab, _setTab] = useState("transcript");
