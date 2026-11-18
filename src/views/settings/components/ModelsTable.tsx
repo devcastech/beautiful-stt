@@ -1,6 +1,7 @@
 import { CloudDownload, Trash } from "lucide-react";
 import { ModelInfo } from "../../../services/getModels";
 import { deleteModel } from "../../../services/deleteModel";
+import { alertDialog } from "../../../services/dialog";
 import { useState } from "react";
 const dateFormatter = new Intl.DateTimeFormat("es", {
   dateStyle: "medium",
@@ -28,10 +29,15 @@ export const ModelsTable = ({
   const [deleting, setIsDeleting] = useState<boolean>(false);
   const deleteModelFromApp = async (model: string) => {
     setIsDeleting(true);
-    const response = await deleteModel(model);
-    setIsDeleting(false);
-    console.log(response);
-    onRefresh();
+    try {
+      await deleteModel(model);
+    } catch (error) {
+      console.error(error);
+      void alertDialog(String(error), "No se pudo borrar el modelo", "error");
+    } finally {
+      setIsDeleting(false);
+      onRefresh();
+    }
   };
   return (
     <div>
