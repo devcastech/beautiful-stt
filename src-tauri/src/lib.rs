@@ -6,7 +6,7 @@ mod utils;
 #[path = "audio_processor_cli.rs"]
 mod audio_processor;
 mod downloader;
-mod summarizer_cli;
+mod commands;
 
 #[derive(Clone, Serialize)]
 struct ProcessEvent {
@@ -61,20 +61,6 @@ async fn download_audio(app: AppHandle, audio_url: String) -> Result<downloader:
         .map_err(|e| e.to_string())
 }
 
-#[tauri::command]
-async fn summarize_transcript(
-    app: AppHandle,
-    transcript: String,
-    llm_model: Option<String>,
-    output_mode: Option<String>,
-) -> Result<String, String> {
-    let emit: Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync> =
-        Arc::new(move |event: &str, step: &str, count: Option<u32>| {
-            app.emit( "process", ProcessEvent { event: event.into(), step: step.into(), count, }, ).unwrap();
-        });
-
-    summarizer_cli::summarize_transcript(emit, &transcript, llm_model.as_deref(), output_mode.as_deref())
-}
 
 #[tauri::command]
 async fn save_text_file(path: String, contents: String) -> Result<String, String> {
@@ -94,9 +80,10 @@ pub fn run() {
             detect_gpu,
             process_audio_file,
             ensure_default_models,
-            summarize_transcript,
             download_audio,
-            save_text_file
+            save_text_file,
+            commands::settings::get_models,
+            commands::settings::delete_model
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

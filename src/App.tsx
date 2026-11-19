@@ -1,17 +1,30 @@
-import { AudioProcessor } from './AudioProcessor';
-import './App.css';
-import { Header } from './components/Header';
-import { Footer } from './components/Footer';
+import "./App.css";
+import { AudioProcessor } from "./views/transcript/AudioProcessor";
+import Layout from "./layout";
+import { Settings } from "./views/settings/Settings";
+import { VIEWS, ViewProvider, useView } from "./hooks/useView";
 
 function App() {
   return (
-    <main className="w-full h-full flex flex-col overflow-auto">
-      <Header />
-      <div className="flex-1">
+    <ViewProvider>
+      <Layout>
+        <Views />
+      </Layout>
+    </ViewProvider>
+  );
+}
+
+function Views() {
+  const { view } = useView();
+  return (
+    <>
+      <div hidden={view !== VIEWS.transcript} className="h-full">
         <AudioProcessor />
       </div>
-      <Footer />
-    </main>
+      <div hidden={view !== VIEWS.settings} className="h-full">
+        <Settings />
+      </div>
+    </>
   );
 }
 

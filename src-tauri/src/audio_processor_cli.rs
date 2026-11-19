@@ -144,16 +144,13 @@ impl AudioProcessor {
 
         let elapsed = total.elapsed().as_secs();
         (self.emit)(
-            "process",
+            "process_complete",
             &format!("Proceso completado en {:?} segundos", elapsed),
             None,
         );
         transcription.text
     }
 
-    /// Resuelve la ruta del binario whisper-cli.
-    /// En producción (bundle): junto al ejecutable (dylibs en ../Frameworks/).
-    /// En desarrollo: homebrew o sistema (tiene sus propios dylibs).
     pub fn get_whisper_bin_path(&self) -> std::path::PathBuf {
         let bin_name = if cfg!(target_os = "windows") {
             "whisper-cli.exe"
@@ -166,9 +163,6 @@ impl AudioProcessor {
             .and_then(|p| p.parent().map(|p| p.to_path_buf()))
             .unwrap_or_default();
 
-        // En producción el binario bundleado va primero (dylibs en ../Frameworks/ listos).
-        // En dev NO usamos el binario copiado por Tauri en target/debug/ porque sus rpaths
-        // apuntan a ../Frameworks/ que no existe en modo dev — usamos homebrew/sistema primero.
         #[cfg(not(debug_assertions))]
         {
             let next_to_exe = exe_dir.join(bin_name);
@@ -186,7 +180,6 @@ impl AudioProcessor {
             }
         }
 
-        // Fallback: next to exe (producción sin Frameworks, o PATH del sistema)
         let next_to_exe = exe_dir.join(bin_name);
         if next_to_exe.exists() {
             return next_to_exe;
@@ -226,7 +219,12 @@ impl AudioProcessor {
             ),
             Some(0),
         );
-        let mut file = File::create(&model_path)?;
+        // Se descarga a "<modelo>.part" y se renombra al terminar, para que un
+        // archivo incompleto nunca aparezca como modelo descargado.
+        let mut part_name = model_path.clone().into_os_string();
+        part_name.push(".part");
+        let part_path = std::path::PathBuf::from(part_name);
+        let mut file = File::create(&part_path)?;
         let mut reader = response.into_reader();
         let mut buf = vec![0u8; 512 * 1024]; // 512KB chunks
         let mut downloaded: u64 = 0;
@@ -258,11 +256,18 @@ impl AudioProcessor {
                     }
                 }
             }
+            if let Some(total) = total_bytes {
+                if downloaded != total {
+                    return Err(format!("se recibieron {} de {} bytes", downloaded, total).into());
+                }
+            }
+            file.sync_all()?;
             Ok(())
         })();
+        drop(file);
 
-        if let Err(e) = result {
-            let _ = std::fs::remove_file(&model_path);
+        if let Err(e) = result.and_then(|_| std::fs::rename(&part_path, &model_path).map_err(Into::into)) {
+            let _ = std::fs::remove_file(&part_path);
             return Err(format!("Descarga interrumpida: {}", e).into());
         }
         (self.emit)("process_download_assets", "Modelo descargado", Some(100));
@@ -276,15 +281,16 @@ impl AudioProcessor {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
                 whisper_model
             );
-            let _ = self.streaming_download(whisper_model, &model_url, model_path);
+            self.streaming_download(whisper_model, &model_url, model_path)?;
         }
         Ok(())
     }
 
     pub fn ensure_vad_model(&self) -> Result<std::path::PathBuf, Box<dyn std::error::Error>> {
         let vad_path = self.get_model_path(VAD_MODEL_NAME);
+        println!("[STT] ensure_vad_model() vad_path={}", vad_path.display());
         if !vad_path.exists() {
-            let _ = self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone());
+            self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone())?;
         }
         Ok(vad_path)
     }
@@ -494,8 +500,6 @@ impl AudioProcessor {
         json_base: &Path,
         vad_model_path: Option<&Path>,
     ) {
-        // En producción macOS, los dylibs están en ../Frameworks/ relativo al exe.
-        // Aunque el rpath está patched, forzamos DYLD_LIBRARY_PATH por robustez.
         #[cfg(all(target_os = "macos", not(debug_assertions)))]
         {
             let frameworks_dir = std::env::current_exe()

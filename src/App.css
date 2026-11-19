@@ -1,36 +1,38 @@
 @import "tailwindcss";
 
-/* ----------------------------------------------------------------------------
-   Sistema de diseño "Tinta y papel" — light & dark.
-   Los tokens (bg/surface/text/muted/accent/lacre/line) se redefinen por tema
-   para que toda la UI existente se recoloree sin tocar los componentes.
----------------------------------------------------------------------------- */
-@theme {
-  --color-bg: #faf8f4;      /* papel cálido */
-  --color-surface: #f0ede5; /* papel oscuro — tarjetas */
-  --color-text: #1a1a1a;    /* tinta */
-  --color-muted: #6f695d;   /* tinta gris — texto secundario */
-  --color-accent: #2d4a3e;  /* verde tinta — acento estructural (eyebrows) */
-  --color-lacre: #b8351f;   /* rojo lacre — acento cálido (timestamps, CTAs) */
-  --color-line: #ddd6c8;    /* envejecido — bordes */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+@theme {
+  --color-bg: #ececea;
+  --color-surface: #ffffff;
+  --color-elevated: #f2f2ef;
+  --color-line: #deded9;
+  --color-text: #1b1b1b;
+  --color-muted: #62625c;
+  --color-accent: #111111;
+  --color-on-accent: #ffffff;
+  --color-sunken: rgb(0 0 0 / 0.07);
+  --color-danger: #b8351f;
+  --color-on-danger: #ffffff;
+  --color-success: #2d4a3e;
+
+  --font-body: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
 }
 
-/* Tinta nocturna — paleta ergonómica para dark mode.
-   - Fondo profundo y superficies sutiles: ambiente oscuro y sobrio.
-   - Texto crema legible sin halación; cuerpo ~16:1 sobre el fondo.
-   - Bordes visibles (~2.8:1) para separar componentes del fondo.
-   - Acentos cálidos conservados (verde salvia + terracota). */
 :root[data-theme="dark"] {
-  --color-bg: #0c0b09;      /* tinta profunda — ambiente oscuro */
-  --color-surface: #161311; /* superficie apenas elevada — tarjeta sutil */
-  --color-text: #ece7d9;    /* papel crema — legible sin halación dura */
-  --color-muted: #a8a18f;   /* tinta gris cálida — secundario */
-  --color-accent: #a8c9b6;  /* verde salvia — acento estructural */
-  --color-lacre: #d49a82;   /* terracota — acento cálido (CTAs, timestamps) */
-  --color-line: #5f584d;    /* borde visible sobre el fondo profundo */
+  --color-bg: #1f1f1f;
+  --color-surface: #2a2a2a;
+  --color-elevated: #353535;
+  --color-line: #3a3a3a;
+  --color-text: #f4f4f1;
+  --color-muted: #adadaa;
+  --color-accent: #f4f4f1;
+  --color-on-accent: #1a1a1a;
+  --color-sunken: rgb(0 0 0 / 0.28);
+  --color-danger: #d49a82;
+  --color-on-danger: #1f1f1f;
+  --color-success: #a8c9b6;
 }
 
 :root {
@@ -38,7 +40,7 @@
   font-size: 15px;
   line-height: 1.6;
   font-weight: 400;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 
   color: var(--color-text);
   background-color: var(--color-bg);
@@ -60,26 +62,7 @@ html, body, #root {
 }
 
 body {
-  position: relative;
-}
-
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  opacity: 0.035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-:root[data-theme="dark"] body::before {
-  opacity: 0.03;
-}
-
-#root {
-  position: relative;
-  z-index: 1;
+  background-color: var(--color-bg);
 }
 
 a {
@@ -89,16 +72,16 @@ a {
 }
 
 a:hover {
-  color: var(--color-lacre);
+  color: var(--color-accent);
 }
 
 ::selection {
   background-color: var(--color-accent);
-  color: var(--color-bg);
+  color: var(--color-on-accent);
 }
 
 :focus-visible {
-  outline: 2px solid var(--color-lacre);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
@@ -109,7 +92,7 @@ a:hover {
 }
 
 *::-webkit-scrollbar {
-  width: 4px;
+  width: 6px;
 }
 
 *::-webkit-scrollbar-track {
@@ -118,11 +101,11 @@ a:hover {
 
 *::-webkit-scrollbar-thumb {
   background-color: var(--color-line);
-  border-radius: 2px;
+  border-radius: 999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background-color: var(--color-accent);
+  background-color: var(--color-muted);
 }
 
 audio {
