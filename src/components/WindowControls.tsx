@@ -62,8 +62,8 @@ function ControlButton({ label, danger = false, onClick, children }: ControlButt
       title={label}
       aria-label={label}
       onClick={onClick}
-      className={`inline-flex items-center justify-center h-12 w-11 cursor-pointer text-muted transition-colors ${
-        danger ? 'hover:bg-err hover:text-white' : 'hover:bg-elevated hover:text-primary'
+      className={`inline-flex items-center justify-center h-10 w-11 cursor-pointer text-muted transition-colors ${
+        danger ? 'hover:bg-danger hover:text-on-danger' :'hover:bg-elevated hover:text-text'
       }`}
     >
       {children}

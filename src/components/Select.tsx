@@ -1,11 +1,22 @@
-import { KeyboardEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  KeyboardEvent,
+  ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
 
 export type SelectOption = {
   value: string;
   label: string;
+  /** Dato corto que se muestra junto al label (p. ej. el tamaño). */
+  meta?: string;
   description?: string;
+  /** Se anuncia con la descripción: si es un icono, incluye texto sr-only. */
+  trailing?: ReactNode;
 };
 
 type SelectProps = {
@@ -94,7 +105,7 @@ export const Select = ({
     <div className={cn("flex flex-col gap-1.5", className)}>
       <span
         id={labelId}
-        className="font-mono text-[10px] text-accent uppercase tracking-[0.18em]"
+        className="text-xs font-medium text-muted"
       >
         {label}
       </span>
@@ -114,16 +125,21 @@ export const Select = ({
           onKeyDown={handleKeyDown}
           onBlur={() => setOpen(false)}
           className={cn(
-            "w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg border bg-bg text-sm cursor-pointer transition-colors",
+            "w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-2xl border bg-elevated text-sm cursor-pointer transition-colors",
             open
-              ? "border-accent"
-              : "border-line hover:border-accent/50 focus:border-accent",
+              ? "border-accent/40"
+              : "border-transparent hover:border-line focus:border-accent/40",
           )}
         >
           <span className="flex items-baseline gap-2 min-w-0">
             {selected ? (
               <>
                 <span className="text-text shrink-0">{selected.label}</span>
+                {selected.meta && (
+                  <span className="text-muted text-xs shrink-0 tabular-nums">
+                    {selected.meta}
+                  </span>
+                )}
                 {selected.description && (
                   <span className="text-muted text-xs truncate">
                     {selected.description}
@@ -134,6 +150,11 @@ export const Select = ({
               <span className="text-muted">{placeholder}</span>
             )}
           </span>
+          {selected?.trailing && (
+            <span className="ml-auto shrink-0 flex items-center text-muted">
+              {selected.trailing}
+            </span>
+          )}
           <ChevronDown
             size={14}
             strokeWidth={1.5}
@@ -153,7 +174,7 @@ export const Select = ({
           hidden={!open}
           // Evita que el combobox pierda el foco (y se cierre) al hacer clic en la lista.
           onMouseDown={(e) => e.preventDefault()}
-          className="absolute z-20 mt-1 w-full max-h-72 overflow-y-auto rounded-lg border border-line bg-bg py-1 shadow-lg"
+          className="absolute z-20 mt-2 w-full max-h-72 overflow-y-auto rounded-2xl border border-line bg-surface p-1 shadow-xl"
         >
           {options.map((option, index) => {
             const isSelected = index === selectedIndex;
@@ -166,13 +187,19 @@ export const Select = ({
                 aria-selected={isSelected}
                 aria-labelledby={`${oid}-label`}
                 aria-describedby={
-                  option.description ? `${oid}-description` : undefined
+                  [
+                    option.meta && `${oid}-meta`,
+                    option.description && `${oid}-description`,
+                    option.trailing && `${oid}-trailing`,
+                  ]
+                    .filter(Boolean)
+                    .join(" ") || undefined
                 }
                 onPointerMove={() => setActiveIndex(index)}
                 onClick={() => commit(index)}
                 className={cn(
-                  "flex items-start gap-2 px-3 py-2 cursor-pointer",
-                  index === activeIndex && "bg-accent/10",
+                  "flex items-start gap-2 px-3 py-2 rounded-xl cursor-pointer",
+                  index === activeIndex && "bg-elevated",
                 )}
               >
                 <Check
@@ -184,14 +211,24 @@ export const Select = ({
                   )}
                 />
                 <span className="flex flex-col min-w-0">
-                  <span
-                    id={`${oid}-label`}
-                    className={cn(
-                      "text-sm",
-                      isSelected ? "text-accent" : "text-text",
+                  <span className="flex items-baseline gap-2">
+                    <span
+                      id={`${oid}-label`}
+                      className={cn(
+                        "text-sm",
+                        isSelected ? "text-accent font-medium" : "text-text",
+                      )}
+                    >
+                      {option.label}
+                    </span>
+                    {option.meta && (
+                      <span
+                        id={`${oid}-meta`}
+                        className="text-xs text-muted tabular-nums"
+                      >
+                        {option.meta}
+                      </span>
                     )}
-                  >
-                    {option.label}
                   </span>
                   {option.description && (
                     <span
@@ -202,6 +239,14 @@ export const Select = ({
                     </span>
                   )}
                 </span>
+                {option.trailing && (
+                  <span
+                    id={`${oid}-trailing`}
+                    className="ml-auto shrink-0 self-center flex items-center text-muted"
+                  >
+                    {option.trailing}
+                  </span>
+                )}
               </li>
             );
           })}

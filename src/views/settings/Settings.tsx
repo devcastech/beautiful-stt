@@ -1,37 +1,68 @@
-import { SectionHeader } from "../../components/SectionHeader";
-import { Activity, useEffect, useState } from "react";
-import { ModelsTable } from "./components/ModelsTable";
-import { Navigation, SettingsTab, TABS } from "./components/Navigation";
+import { Activity, useCallback, useEffect, useState } from "react";
+import { Boxes, Gauge } from "lucide-react";
+import { Page } from "../../components/Page";
+import {
+  SegmentedTabItem,
+  SegmentedTabs,
+  TabPanel,
+} from "../../components/SegmentedTabs";
+import { VIEWS, useView } from "../../hooks/useView";
 import { getModelList, ModelInfo } from "../../services/getModels";
+import { ModelsList } from "./components/ModelsList";
+
+const TABS = {
+  PERFORMANCE: "performance",
+  MODELS: "models",
+} as const;
+
+type SettingsTab = (typeof TABS)[keyof typeof TABS];
+
+const SETTINGS_TABS: SegmentedTabItem<SettingsTab>[] = [
+  { id: TABS.PERFORMANCE, label: "Rendimiento", icon: Gauge },
+  { id: TABS.MODELS, label: "Modelos", icon: Boxes },
+];
+
+const ID_BASE = "settings";
 
 export const Settings = () => {
+  const { view } = useView();
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [tab, setTab] = useState<SettingsTab>(TABS.PERFORMANCE);
 
-  const getAvailableModels = () => {
+  const getAvailableModels = useCallback(() => {
     getModelList().then(setModels).catch(console.error);
-  };
-  useEffect(() => {
-    getAvailableModels();
   }, []);
 
+  useEffect(() => {
+    if (view === VIEWS.settings) getAvailableModels();
+  }, [view, getAvailableModels]);
+
   return (
-    <div className="w-full h-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">
-      <div className="h-full flex flex-col gap-2">
-        <SectionHeader label="Configuración" />
-        <div className="h-full flex justify-between items-start gap-4">
-          <Navigation tab={tab} setTab={setTab} />
-          <div className="flex-1 rounded-md overflow-hidden">
-            <Activity mode={tab === TABS.PERFORMANCE ? "visible" : "hidden"}>
-              <div>Rendimiento</div>
-              {/*pendiente implementar*/}
-            </Activity>
-            <Activity mode={tab === TABS.MODELS ? "visible" : "hidden"}>
-              <ModelsTable models={models} onRefresh={getAvailableModels} />
-            </Activity>
+    <Page
+      title="Configuración"
+      toolbar={
+        <SegmentedTabs
+          items={SETTINGS_TABS}
+          value={tab}
+          onChange={setTab}
+          label="Secciones de configuración"
+          idBase={ID_BASE}
+        />
+      }
+    >
+      <Activity mode={tab === TABS.PERFORMANCE ? "visible" : "hidden"}>
+        <TabPanel idBase={ID_BASE} value={TABS.PERFORMANCE}>
+          <div className="bg-surface rounded-3xl px-6 py-12 flex flex-col items-center gap-2 text-center text-muted">
+            <Gauge size={22} strokeWidth={1.5} aria-hidden="true" />
+            <p className="text-sm">Próximamente</p>
           </div>
-        </div>
-      </div>
-    </div>
+        </TabPanel>
+      </Activity>
+      <Activity mode={tab === TABS.MODELS ? "visible" : "hidden"}>
+        <TabPanel idBase={ID_BASE} value={TABS.MODELS}>
+          <ModelsList models={models} onRefresh={getAvailableModels} />
+        </TabPanel>
+      </Activity>
+    </Page>
   );
 };

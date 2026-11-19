@@ -144,7 +144,7 @@ impl AudioProcessor {
 
         let elapsed = total.elapsed().as_secs();
         (self.emit)(
-            "process",
+            "process_complete",
             &format!("Proceso completado en {:?} segundos", elapsed),
             None,
         );
@@ -219,7 +219,12 @@ impl AudioProcessor {
             ),
             Some(0),
         );
-        let mut file = File::create(&model_path)?;
+        // Se descarga a "<modelo>.part" y se renombra al terminar, para que un
+        // archivo incompleto nunca aparezca como modelo descargado.
+        let mut part_name = model_path.clone().into_os_string();
+        part_name.push(".part");
+        let part_path = std::path::PathBuf::from(part_name);
+        let mut file = File::create(&part_path)?;
         let mut reader = response.into_reader();
         let mut buf = vec![0u8; 512 * 1024]; // 512KB chunks
         let mut downloaded: u64 = 0;
@@ -251,11 +256,18 @@ impl AudioProcessor {
                     }
                 }
             }
+            if let Some(total) = total_bytes {
+                if downloaded != total {
+                    return Err(format!("se recibieron {} de {} bytes", downloaded, total).into());
+                }
+            }
+            file.sync_all()?;
             Ok(())
         })();
+        drop(file);
 
-        if let Err(e) = result {
-            let _ = std::fs::remove_file(&model_path);
+        if let Err(e) = result.and_then(|_| std::fs::rename(&part_path, &model_path).map_err(Into::into)) {
+            let _ = std::fs::remove_file(&part_path);
             return Err(format!("Descarga interrumpida: {}", e).into());
         }
         (self.emit)("process_download_assets", "Modelo descargado", Some(100));
@@ -269,7 +281,7 @@ impl AudioProcessor {
                 "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/{}",
                 whisper_model
             );
-            let _ = self.streaming_download(whisper_model, &model_url, model_path);
+            self.streaming_download(whisper_model, &model_url, model_path)?;
         }
         Ok(())
     }
@@ -278,7 +290,7 @@ impl AudioProcessor {
         let vad_path = self.get_model_path(VAD_MODEL_NAME);
         println!("[STT] ensure_vad_model() vad_path={}", vad_path.display());
         if !vad_path.exists() {
-            let _ = self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone());
+            self.streaming_download(VAD_MODEL_NAME, &VAD_MODEL_URL, vad_path.clone())?;
         }
         Ok(vad_path)
     }

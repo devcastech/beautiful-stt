@@ -1,12 +1,28 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
-import { WandSparkles, Music, DownloadCloud, Computer } from "lucide-react";
+import {
+  Music,
+  DownloadCloud,
+  Computer,
+  Link,
+  Plus,
+  CloudDownload,
+  Cpu,
+} from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { DisplayTranscript } from "../../components/DisplayTranscript";
-import { SectionHeader } from "../../components/SectionHeader";
+import { Page } from "../../components/Page";
 import { getModelList, ModelInfo } from "../../services/getModels";
 import { Select } from "../../components/Select";
+import {
+  SegmentedTabItem,
+  SegmentedTabs,
+  TabPanel,
+} from "../../components/SegmentedTabs";
+import { ProgressBar } from "../../components/ProgressBar";
+import { VIEWS, useView } from "../../hooks/useView";
+import { cn, formatBytes } from "../../lib/utils";
 import { DownloadSteps } from "./components/DownloadSteps";
 
 export type ProcessEvent = {
@@ -20,7 +36,17 @@ export type TranscriptSegment = {
   to_ms: number;
   text: string;
 };
+
+type SourceTab = "localFile" | "downloadFile";
+
+const SOURCE_TABS: SegmentedTabItem<SourceTab>[] = [
+  { id: "localFile", label: "Archivo local", icon: Computer },
+  { id: "downloadFile", label: "Desde URL", icon: Link },
+];
+
+
 export const AudioProcessor = () => {
+  const { view } = useView();
   const [selectedFilePath, setSelectedFileFilePath] = useState<string | null>(
     null,
   );
@@ -40,26 +66,32 @@ export const AudioProcessor = () => {
   const [resourcesUsed, setResourcesUsed] = useState<string>("");
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const [activeTab, setActiveTab] = useState<string>("localFile");
+  const [activeTab, setActiveTab] = useState<SourceTab>("localFile");
   const [startingApp, setStartingApp] = useState<boolean>(false);
 
-  useEffect(() => {
+  const refreshModels = useCallback(() => {
     getModelList()
       .then((list) => {
         setModels(list);
-        const defaultModel = list.find((m) => m.default);
-        if (defaultModel) {
-          setModel(defaultModel.name);
-        } else {
-          setModel(list[0].name);
-        }
+        setModel(
+          (current) =>
+            current || (list.find((m) => m.default) ?? list[0])?.name || "",
+        );
       })
       .catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (view === VIEWS.transcript) refreshModels();
+  }, [view, refreshModels]);
+
   useEffect(() => {
     const unlisten = listen<ProcessEvent>("process", (event) => {
       console.log(event);
-      if (["process"].includes(event.payload.event)) {
+      if (
+        ["process", "process_complete"].includes(event.payload.event) &&
+        event.payload.step
+      ) {
         setProcessStep({
           event: event.payload.event,
           step: event.payload.step,
@@ -123,21 +155,24 @@ export const AudioProcessor = () => {
       }
       setProcessStep(null);
       setProcessDownloadAssetsStep(null);
+      refreshModels();
     }
     ensureDefaultModels();
-  }, [model]);
+  }, [model, refreshModels]);
 
   const processAudioFile = async () => {
     setIsProcessing(true);
     setResult("");
     setSegments([]);
     setProcessStep(null);
+    setProcessDownloadAssetsStep(null);
     const response = await invoke("process_audio_file", {
       filePath: selectedFilePath,
       whisperModel: model,
     });
     setResult(response as string);
     setIsProcessing(false);
+    refreshModels();
   };
 
   const downloadAudio = async () => {
@@ -169,6 +204,7 @@ export const AudioProcessor = () => {
 
       if (selected && typeof selected === "string") {
         setResult("");
+        setSegments([]);
         setPreviewUnavailable(false);
         setSelectedFileFilePath(selected);
         const assetUrl = convertFileSrc(selected);
@@ -180,174 +216,196 @@ export const AudioProcessor = () => {
       console.error(error);
     }
   };
+
   if (startingApp) {
     return (
-      <div className="w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">
-        <div className="flex flex-col gap-2">
-          <SectionHeader label="Transcripción" />
-          <p className="text-muted my-4">
-            Se están realizando las configuraciones iniciales, esto tomará solo
-            un momento.
-          </p>
-          {processDownloadAssetsStep && (
+      <Page title="Transcripción">
+        <div className="max-w-lg bg-surface rounded-3xl p-6 flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">Preparando todo</p>
+            <p className="text-sm text-muted">
+              Se están realizando las configuraciones iniciales, esto tomará
+              solo un momento.
+            </p>
+          </div>
+          {processDownloadAssetsStep ? (
             <DownloadSteps
               processDownloadAssetsStep={processDownloadAssetsStep}
             />
+          ) : (
+            <ProgressBar ariaLabel="Configuración inicial" />
           )}
         </div>
-      </div>
+      </Page>
     );
   }
 
   return (
-    <div className="w-full mx-auto px-6 lg:px-8 py-6 flex flex-col gap-6">
-      <div className="flex flex-col gap-2">
-        <SectionHeader label="Transcripción" />
-        <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-2 items-start">
-          <div className="flex flex-col gap-2">
-            <div className="rounded-lg p-4 flex flex-col gap-3">
-              <div className="flex justify-center gap-3 border-b border-line">
-                {[
-                  ["localFile", "Archivo local"],
-                  ["downloadFile", "Descargar de youtube o facebook"],
-                ].map(([id, label]) => (
-                  <button
-                    key={id}
-                    onClick={() => setActiveTab(id)}
-                    className={`flex justify-center items-center gap-1 font-mono text-[10px] font-medium uppercase tracking-[0.18em] px-2.5 py-1 rounded-t-md transition-colors ${
-                      activeTab === id
-                        ? "bg-accent/10 text-accent border-b border-accent font-bold"
-                        : "text-muted hover:text-accent"
-                    }`}
-                  >
-                    {id === "localFile" && (
-                      <Computer size={18} strokeWidth={1.25} />
-                    )}
-                    {id === "downloadFile" && (
-                      <DownloadCloud size={18} strokeWidth={1.5} />
-                    )}
-                    <span>{label}</span>
-                  </button>
-                ))}
-              </div>
+    <Page title="Transcripción">
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-4 items-start">
+        <div className="flex flex-col gap-4">
+          <section
+            aria-label="Audio"
+            className="bg-surface rounded-3xl p-5 flex flex-col gap-4"
+          >
+            <SegmentedTabs
+              items={SOURCE_TABS}
+              value={activeTab}
+              onChange={setActiveTab}
+              label="Origen del audio"
+              idBase="audio-source"
+              fullWidth
+            />
+
+            <TabPanel idBase="audio-source" value={activeTab}>
+              {activeTab === "localFile" && (
+                <button
+                  type="button"
+                  onClick={handleSelectFile}
+                  className="group w-full flex flex-col items-center gap-2 py-6 rounded-2xl border-2 border-dashed border-line hover:border-muted text-muted hover:text-text transition-colors cursor-pointer"
+                >
+                  <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-elevated group-hover:bg-accent group-hover:text-on-accent transition-colors">
+                    <Plus size={18} strokeWidth={1.75} aria-hidden="true" />
+                  </span>
+                  <span className="text-sm">
+                    {fileInfo
+                      ? "Seleccionar otro archivo"
+                      : "Seleccionar audio del equipo"}
+                  </span>
+                  <span className="text-xs text-muted">
+                    MP3, WAV, OGG, FLAC, AAC, OPUS, M4A
+                  </span>
+                </button>
+              )}
+
               {activeTab === "downloadFile" && (
-                <div className="flex gap-2 flex-col justify-center items-center">
+                <div className="flex flex-col gap-2">
+                  <label
+                    htmlFor="audio-url"
+                    className="text-xs font-medium text-muted"
+                  >
+                    Enlace de YouTube o Facebook
+                  </label>
                   <input
-                    type="text"
+                    id="audio-url"
+                    type="url"
                     value={audioUrl}
                     onChange={(e) => setAudioUrl(e.target.value)}
-                    className="group w-full bg-surface border border-line rounded-lg py-2 transition-all duration-200 p-1"
+                    className="w-full bg-elevated rounded-full px-4 py-2.5 text-sm border border-transparent focus:border-accent/40 placeholder:text-muted/70 transition-colors"
                     placeholder="https://www.youtube.com/watch?v=9oc0SrAFrMc"
                   />
                   <button
+                    type="button"
                     onClick={downloadAudio}
                     disabled={!audioUrl || isProcessing || isDownloading}
-                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                      isProcessing || !audioUrl || isDownloading
-                        ? "bg-lacre/15 text-lacre cursor-not-allowed"
-                        : "bg-lacre text-bg hover:brightness-110 active:scale-[0.99]"
-                    }`}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-full text-sm font-medium bg-elevated text-text transition-colors enabled:hover:bg-line disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                   >
-                    <DownloadCloud size={13} strokeWidth={1.5} />
-                    {isDownloading ? "Descargando..." : "Descargar"}
+                    <DownloadCloud size={14} strokeWidth={1.75} aria-hidden="true" />
+                    {isDownloading ? "Descargando..." : "Descargar audio"}
                   </button>
                 </div>
               )}
-              {activeTab === "localFile" && (
-                <div>
-                  <button
-                    onClick={handleSelectFile}
-                    className="group w-full border border-dashed border-line hover:border-accent rounded-lg py-5 transition-all duration-200"
-                  >
-                    <div className="flex flex-col items-center gap-2 text-muted group-hover:text-accent transition-colors duration-200">
-                      <Computer size={18} strokeWidth={1.25} />
-                      <span className="font-mono text-[11px] font-medium tracking-[0.18em] uppercase">
-                        {fileInfo
-                          ? "Seleccionar otro archivo desde el equipo"
-                          : "Seleccionar audio del equipo"}
-                      </span>
-                    </div>
-                  </button>
+            </TabPanel>
+
+            {fileInfo && (
+              <div className="flex flex-col gap-3 rounded-2xl bg-elevated p-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent text-on-accent shrink-0">
+                    <Music size={16} strokeWidth={1.75} aria-hidden="true" />
+                  </span>
+                  <p className="flex-1 text-sm truncate" title={fileInfo.name}>
+                    {fileInfo.name}
+                  </p>
+                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted border border-line rounded-full px-2 py-0.5 shrink-0">
+                    {selectedFilePath?.split(".").pop()}
+                  </span>
                 </div>
-              )}
-              {fileInfo && (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center gap-2">
-                    <Music
-                      size={12}
-                      className="text-accent shrink-0"
-                      strokeWidth={1.5}
+                {!previewUnavailable && (
+                  <audio
+                    controls
+                    preload="metadata"
+                    src={fileInfo.url}
+                    aria-label={`Vista previa de ${fileInfo.name}`}
+                    className="w-full h-8"
+                    onError={() => setPreviewUnavailable(true)}
+                  />
+                )}
+              </div>
+            )}
+          </section>
+
+          <section
+            aria-label="Modelo y transcripción"
+            className="bg-surface rounded-3xl p-5 flex flex-col gap-4"
+          >
+            <Select
+              label="Modelo"
+              value={model}
+              onChange={setModel}
+              options={models.map((m) => ({
+                value: m.name,
+                label: m.label,
+                meta: formatBytes(m.disk_size ?? m.size),
+                description: m.description,
+                trailing: m.downloaded ? undefined : (
+                  <>
+                    <CloudDownload
+                      size={14}
+                      strokeWidth={1.75}
+                      aria-hidden="true"
                     />
-                    <p className="text-base text-muted truncate">
-                      {fileInfo.name}
-                    </p>
-                    <span className="font-mono text-xs uppercase tracking-wider text-accent border border-line rounded px-1.5 py-0.5 shrink-0">
-                      {selectedFilePath?.split(".").pop()}
-                    </span>
-                  </div>
-                  {!previewUnavailable && (
-                    <audio
-                      controls
-                      preload="metadata"
-                      src={fileInfo.url}
-                      aria-label={`Vista previa de ${fileInfo.name}`}
-                      className="w-full h-8"
-                      onError={() => setPreviewUnavailable(true)}
-                    />
-                  )}
-                </div>
-              )}
-              <Select
-                label="Modelo"
-                value={model}
-                onChange={setModel}
-                options={models.map((m) => ({
-                  value: m.name,
-                  label: m.label,
-                  description: m.description,
-                }))}
+                    <span className="sr-only">Se descargará al transcribir</span>
+                  </>
+                ),
+              }))}
+            />
+
+            {isProcessing && processDownloadAssetsStep && (
+              <DownloadSteps
+                processDownloadAssetsStep={processDownloadAssetsStep}
               />
-              {selectedFilePath && (
-                <button
-                  onClick={processAudioFile}
-                  disabled={isProcessing}
-                  className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-                    isProcessing
-                      ? "bg-lacre/15 text-lacre cursor-not-allowed"
-                      : "bg-lacre text-bg hover:brightness-110 active:scale-[0.99]"
-                  }`}
-                >
-                  <WandSparkles size={13} strokeWidth={1.5} />
-                  {isProcessing ? "Procesando..." : "Transcribir"}
-                </button>
+            )}
+
+            {selectedFilePath && (
+              <button
+                type="button"
+                onClick={processAudioFile}
+                disabled={isProcessing}
+                className={cn(
+                  "w-full flex items-center justify-center gap-2 py-3 rounded-full text-sm font-medium bg-accent text-on-accent transition-all",
+                  isProcessing
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:opacity-90 active:scale-[0.99] cursor-pointer",
+                )}
+              >
+                {isProcessing ? "Procesando..." : "Transcribir"}
+              </button>
+            )}
+
+            <div className="flex items-center gap-1.5 flex-wrap">
+              {model && (
+                <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-elevated text-muted">
+                  {model.replace(".bin", "")}
+                </span>
               )}
-            </div>
-            <div className="flex justify-center items-center gap-1.5 flex-wrap">
-              <span className="text-[10px] font-mono px-2 py-1 rounded-md bg-surface border border-line text-muted">
-                {model.replace(".bin", "")}
-              </span>
               {resourcesUsed && (
-                <span className="text-[10px] font-mono px-2 py-1 rounded-md bg-surface border border-line text-muted">
+                <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full bg-elevated text-muted">
+                  <Cpu size={11} strokeWidth={1.75} aria-hidden="true" />
                   {resourcesUsed}
                 </span>
               )}
             </div>
-          </div>
-
-          <DisplayTranscript
-            text={result}
-            segments={segments}
-            isProcessing={isProcessing}
-            processStep={processStep}
-            title={fileInfo?.name}
-          />
+          </section>
         </div>
-        {processDownloadAssetsStep && (
-          <DownloadSteps
-            processDownloadAssetsStep={processDownloadAssetsStep}
-          />
-        )}
+
+        <DisplayTranscript
+          text={result}
+          segments={segments}
+          isProcessing={isProcessing}
+          processStep={processStep}
+          title={fileInfo?.name}
+        />
       </div>
-    </div>
+    </Page>
   );
 };
