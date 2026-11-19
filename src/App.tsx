@@ -18,10 +18,12 @@ function Views() {
   const { view } = useView();
   return (
     <>
-      <div hidden={view !== VIEWS.transcript}>
+      <div hidden={view !== VIEWS.transcript} className="h-full">
         <AudioProcessor />
       </div>
-      {view === VIEWS.settings && <Settings />}
+      <div hidden={view !== VIEWS.settings} className="h-full">
+        <Settings />
+      </div>
     </>
   );
 }

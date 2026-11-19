@@ -144,7 +144,7 @@ impl AudioProcessor {
 
         let elapsed = total.elapsed().as_secs();
         (self.emit)(
-            "process",
+            "process_complete",
             &format!("Proceso completado en {:?} segundos", elapsed),
             None,
         );

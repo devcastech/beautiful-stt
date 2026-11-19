@@ -5,6 +5,7 @@ export interface ModelInfo {
   label: string;
   description: string;
   size: number;
+  disk_size: number | null;
   modified: number | undefined;
   downloaded: boolean;
   default: boolean;
