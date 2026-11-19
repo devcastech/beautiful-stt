@@ -35,13 +35,6 @@ This is a problem when your audio contains:
 - Uses from tiny to large-v3 Whisper models depending on available resources
 - Manage Whisper models from the app: download, delete and check their size on disk
 
-## What's new in v1.4.0
-
-- **New look and feel**: a complete redesign with a neutral light and dark theme, a left sidebar for navigation, theme and updates, and a cleaner two-column transcription view
-- **Model management**: a new *Modelos* section in *Configuración* to download models with a progress bar, delete them, and see their download date and size on disk
-- **Setup screen on first launch**: shows the progress while the default models download
-- **More reliable downloads**: failed downloads are reported instead of failing silently, and interrupted downloads no longer leave broken models behind
-
 ## Bundled binaries
 
 Beautiful STT ships these CLI binaries alongside the app, no manual installation needed:
