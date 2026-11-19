@@ -26,13 +26,14 @@ This is a problem when your audio contains:
 ## Features
 
 - Fully local processing, no internet required after model download
-- Supports multiple audio formats (MP3, WAV, FLAC, OGG, AAC, M4A, MP4)
+- Supports multiple audio formats (MP3, WAV, OGG, FLAC, AAC, OPUS, M4A)
 - Download audio directly from YouTube and Facebook URLs via `yt-dlp`
-- AI-powered summarization via local LLM (`llama-completion`)
+- Transcript as plain text or with timestamps, ready to copy or save to a file
 - Dark mode and accessibility support
-- Automatic noise reduction
+- Voice activity detection (Silero VAD) to skip silence
 - GPU acceleration (Metal on macOS, Vulkan on Windows/Linux with automatic CPU fallback, optional CUDA build on Windows)
 - Uses from tiny to large-v3 Whisper models depending on available resources
+- Manage Whisper models from the app: download, delete and check their size on disk
 
 ## Bundled binaries
 
@@ -42,10 +43,9 @@ Beautiful STT ships these CLI binaries alongside the app, no manual installation
 |--------|---------|---------|
 | `whisper-cli` | Speech-to-text transcription (CPU, Metal on macOS) | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) |
 | `whisper-cli-vulkan` | Same, GPU-accelerated via Vulkan (Windows/Linux) | [whisper.cpp](https://github.com/ggerganov/whisper.cpp) |
-| `llama-completion` | Local LLM inference for summarization | [llama.cpp](https://github.com/ggerganov/llama.cpp) |
 | `yt-dlp` | Audio download from YouTube / Facebook URLs | [yt-dlp](https://github.com/yt-dlp/yt-dlp) |
 
-All processing happens on your machine. `yt-dlp` only contacts the internet to fetch the requested URL; `whisper-cli` and `llama-completion` run fully offline.
+All processing happens on your machine. `yt-dlp` only contacts the internet to fetch the requested URL; `whisper-cli` runs fully offline.
 
 ## Installation
 
@@ -114,7 +114,7 @@ Choose the package format for your distribution:
 
 ## First Run
 
-On first launch, the app will download the Whisper/Llama models (400MB ~3 GB depending on the model size). This only happens once for model.
+On first launch, the app downloads the default Whisper model (Small, ~488 MB) and the VAD model, showing the progress on a setup screen. Other models can be downloaded from **Configuración → Modelos**, or download automatically the first time you transcribe with them.
 
 ## License
 
@@ -129,26 +129,22 @@ To build the app or rebuild the bundled binaries, see [BUILD.md](BUILD.md).
 
 ### Quick wins
 - **Language selection** Whisper supports many languages but the app is currently hardcoded to Spanish. Exposing this as a UI option unlocks the full model capability with no pipeline changes.
-- **Export results** Add export to `.txt` or `.md` via `tauri-plugin-fs` (already a project dependency). Currently only copy-to-clipboard is available.
 - **Cancellation** No way to stop a transcription in progress. A long audio file forces the user to close the app entirely.
 
 ### Medium-impact features
-- **Model download progress** Models range from 500 MB to 9 GB and download silently. The first use of any model looks like a crash. A real progress bar is needed.
-- **Extracted entities in the UI** The backend already extracts structured JSON (people, dates, organizations, figures) via Gemma in detailed mode, but this data never reaches the frontend. Displaying it as a dedicated panel would be a meaningful differentiator.
-- **Session history** Persist transcriptions and summaries in `localStorage` or SQLite (Tauri has a plugin) so work isn't lost on close.
+- **Session history** Persist transcriptions in `localStorage` or SQLite (Tauri has a plugin) so work isn't lost on close.
 
 ### Technical improvements
-- **GPU/CPU fallback** `n_gpu_layers(99)` assumes unlimited VRAM. On low-VRAM hardware the process crashes silently. This needs a configurable limit or at least a graceful CPU fallback.
 - **Batch processing** The pipeline is already reusable. Extending the UI to accept a queue of files is the main work.
 - **Direct microphone recording** The natural use case is recording a meeting or voice note directly in the app, not only loading pre-recorded files.
 
 ### Longer term
 - **Global shortcut / system plugin**  A system-wide hotkey to start recording from any app, similar to Whisper Flow or SuperWhisper. Tauri supports global shortcuts.
-- **Timestamps in the transcript**  Whisper produces per-segment timestamps internally but they aren't surfaced in the UI. Useful for navigating long audio (click text → jump to that minute).
+- **Click-to-seek timestamps** Timestamps are shown in the transcript, but clicking one doesn't jump to that point in the audio preview. Useful for navigating long audio.
 
 ## Where models are stored
 
-Models (Whisper, VAD and LLM) are **not** stored next to the binary, inside an
+Models (Whisper and VAD) are **not** stored next to the binary, inside an
 AppImage that location is read-only and writing fails with
 `Permission denied (os error 13)`. Instead they go to the user's data directory
 (`dirs::data_dir()` + `beautiful-stt`):
@@ -164,10 +160,10 @@ Layout inside that folder:
 ```
 beautiful-stt/
 ├── ggml-<model>.bin          # Whisper models
-├── ggml-silero-v5.1.2.bin    # VAD model
-└── llm_models/
-    └── <model>.gguf          # summarization LLMs
+└── ggml-silero-v6.2.0.bin    # VAD model
 ```
 
-To free disk space or force a re-download, delete the relevant file(s); they are
-fetched again on next use.
+To free disk space, delete Whisper models from **Configuración → Modelos**, or
+delete the files by hand; they are downloaded again on next use. A
+`<model>.part` file is an unfinished download and can be deleted safely while
+the app isn't downloading.
