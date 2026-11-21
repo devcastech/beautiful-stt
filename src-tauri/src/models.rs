@@ -1,8 +1,6 @@
-use std::time::UNIX_EPOCH;
-
-use serde::Serialize;
-
 use crate::utils;
+use serde::Serialize;
+use std::time::UNIX_EPOCH;
 
 #[derive(Serialize, Debug)]
 pub struct ModelInfo {
@@ -67,8 +65,7 @@ pub const DEFAULT_MODELS: &[DefaultModel] = &[
     },
 ];
 
-#[tauri::command]
-pub async fn get_models() -> Result<Vec<ModelInfo>, String> {
+pub fn get_models() -> Vec<ModelInfo> {
     let dir = utils::models_base_dir();
     let models = DEFAULT_MODELS
         .iter()
@@ -87,54 +84,20 @@ pub async fn get_models() -> Result<Vec<ModelInfo>, String> {
         })
         .collect();
 
-    Ok(models)
+    models
 }
 
-//#[tauri::command]
-//pub async fn get_models() -> Result<Vec<ModelInfo>, String> {
-//    let dir = utils::models_base_dir();
-//    println!("Models base dir: {:?}", dir);
-//    let models_content = std::fs::read_dir(&dir).map_err(|e| e.to_string())?;
-//
-//    println!("models: {:?}", models_content);
-//    let mut models: Vec<ModelInfo> = Vec::new();
-//    for entry in models_content {
-//        let entry = entry.map_err(|e| e.to_string())?;
-//        let meta = entry.metadata().map_err(|e| e.to_string())?;
-//        let path = entry.path();
-//        if path.extension().and_then(|s| s.to_str()) != Some("bin") {
-//            continue;
-//        }
-//        let downloaded = DEFAULT_MODELS.iter().any(|m| m.name == entry.file_name());
-//
-//        models.push(ModelInfo {
-//            name: entry.file_name().to_string_lossy().to_string(),
-//            size: meta.len(),
-//            downloaded,
-//            modified: meta
-//                .modified()
-//                .ok()
-//                .and_then(|t| t.duration_since(UNIX_EPOCH).ok())
-//                .map(|d| d.as_secs()),
-//        })
-//    }
-//    println!("models: {:?}", models);
-//    models.sort_by(|a, b| a.size.cmp(&b.size));
-//    Ok(models)
-//}
-
-#[tauri::command]
-pub async fn delete_model(model: &str) -> Result<String, String> {
+pub fn delete_model(model: &str) -> Result<(), String> {
     let model = DEFAULT_MODELS
         .iter()
         .find(|m| m.name == model)
         .ok_or_else(|| format!("Unknown model: {model}"))?;
 
-    let model_path = crate::utils::models_base_dir().join(model.name);
+    let model_path = utils::models_base_dir().join(model.name);
 
     match std::fs::remove_file(&model_path) {
-        Ok(()) => Ok("Deleted".to_string()),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok("Deleted".to_string()),
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(e) => Err(format!("Could not delete {}: {e}", model.name)),
     }
 }

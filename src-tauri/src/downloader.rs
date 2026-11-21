@@ -1,9 +1,7 @@
+use crate::utils::EmitType;
 use serde::Serialize;
 use std::process::Command;
-use std::sync::Arc;
 use std::time::Duration;
-
-pub type EmitType = Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
 
 pub struct DownloaderProcessor {
     emit: EmitType,
@@ -79,7 +77,10 @@ impl DownloaderProcessor {
                 }
                 (self.emit)(
                     "process",
-                    &format!("Error en descarga (reintento {}/{}): {}", counter, max_retries, last_line),
+                    &format!(
+                        "Error en descarga (reintento {}/{}): {}",
+                        counter, max_retries, last_line
+                    ),
                     None,
                 );
                 let sleep_time = 2 * counter;

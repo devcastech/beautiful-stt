@@ -1,3 +1,5 @@
+pub type EmitType = std::sync::Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
+
 pub fn models_base_dir() -> std::path::PathBuf {
     let base = dirs::data_dir()
         .map(|d| d.join("beautiful-stt"))

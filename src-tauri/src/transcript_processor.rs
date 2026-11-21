@@ -4,13 +4,11 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 #[cfg(any(target_os = "linux", target_os = "windows"))]
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use std::thread;
 use std::{fs::File, time::Instant};
-#[path = "audio_processor/audio_decoder/mod.rs"]
-mod audio_decoder;
+use crate::audio_decoder;
+use crate::utils::EmitType;
 
-pub type EmitType = Arc<dyn Fn(&str, &str, Option<u32>) + Send + Sync>;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct TranscriptSegment {
@@ -54,15 +52,15 @@ const VAD_MODEL_NAME: &str = "ggml-silero-v6.2.0.bin";
 const VAD_MODEL_URL: &str =
     "https://huggingface.co/ggml-org/whisper-vad/resolve/main/ggml-silero-v6.2.0.bin";
 
-pub struct AudioProcessor {
+pub struct TranscriptProcessor {
     emit: EmitType,
     file_path: String,
     whisper_model: String,
 }
 
-impl AudioProcessor {
+impl TranscriptProcessor {
     pub fn new(emit: EmitType, file_path: String, whisper_model: String) -> Self {
-        AudioProcessor {
+        TranscriptProcessor {
             emit,
             file_path,
             whisper_model,
