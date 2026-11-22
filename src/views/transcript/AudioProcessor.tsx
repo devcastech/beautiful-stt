@@ -310,15 +310,15 @@ export const AudioProcessor = () => {
             {fileInfo && (
               <div className="flex flex-col gap-3 rounded-2xl bg-elevated p-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <span className="inline-flex items-center justify-center w-9 h-9 rounded-xl bg-accent text-on-accent shrink-0">
-                    <Music size={16} strokeWidth={1.75} aria-hidden="true" />
-                  </span>
+                  <Music
+                    size={18}
+                    strokeWidth={1.5}
+                    aria-hidden="true"
+                    className="shrink-0 text-muted"
+                  />
                   <p className="flex-1 text-sm truncate" title={fileInfo.name}>
                     {fileInfo.name}
                   </p>
-                  <span className="font-mono text-[10px] uppercase tracking-wider text-muted border border-line rounded-full px-2 py-0.5 shrink-0">
-                    {selectedFilePath?.split(".").pop()}
-                  </span>
                 </div>
                 {!previewUnavailable && (
                   <audio
