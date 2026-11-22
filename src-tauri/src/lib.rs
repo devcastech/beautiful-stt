@@ -2,6 +2,7 @@ use std::{string::String, sync::Mutex};
 mod audio_decoder;
 mod commands;
 mod downloader;
+mod gpu;
 mod models;
 mod settings;
 mod transcript_processor;
@@ -19,6 +20,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::files::save_text_file,
             commands::system::detect_gpu,
+            commands::system::get_gpus,
             commands::transcript::process_audio_file,
             commands::downloader::download_audio,
             commands::settings::get_models,
