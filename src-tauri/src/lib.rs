@@ -1,14 +1,16 @@
-use std::string::String;
+use std::{string::String, sync::Mutex};
 mod audio_decoder;
 mod commands;
 mod downloader;
 mod models;
+mod settings;
 mod transcript_processor;
 mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(Mutex::new(settings::load()))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
@@ -21,7 +23,9 @@ pub fn run() {
             commands::downloader::download_audio,
             commands::settings::get_models,
             commands::settings::delete_model,
-            commands::settings::ensure_default_models
+            commands::settings::ensure_default_models,
+            commands::settings::get_settings,
+            commands::settings::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
