@@ -16,7 +16,7 @@ This is a problem when your audio contains:
 - Sensitive client data
 
 <div align="center">
-  <video src="https://github.com/user-attachments/assets/82ef7f7e-1402-4f9c-980d-2223a0f40259" controls="controls" style="max-width: 100%; border-radius: 10px;">
+  <video src="https://github.com/user-attachments/assets/4280fcbe-56b8-461e-9503-8ebd166cfa98" controls="controls" style="max-width: 100%; border-radius: 10px;">
     Your browser does not support the video tag.
   </video>
 </div>
