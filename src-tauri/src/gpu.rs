@@ -1,7 +1,6 @@
 use serde::Serialize;
 use std::sync::OnceLock;
 
-// El orden de las variantes define la prioridad al ordenar la lista
 #[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
 #[derive(Serialize, Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(rename_all = "lowercase")]
@@ -46,7 +45,6 @@ fn list_gpus() -> Vec<Gpu> {
             let kind = match props.device_type {
                 vk::PhysicalDeviceType::DISCRETE_GPU => GpuKind::Discrete,
                 vk::PhysicalDeviceType::INTEGRATED_GPU => GpuKind::Integrated,
-                // llvmpipe/lavapipe: Vulkan emulado en el procesador, no es una tarjeta
                 vk::PhysicalDeviceType::CPU => return None,
                 _ => GpuKind::Other,
             };
