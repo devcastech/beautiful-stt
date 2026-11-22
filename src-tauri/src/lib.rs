@@ -1,89 +1,33 @@
-use std::string::String;
-use std::sync::Arc;
-use serde::Serialize;
-use tauri::{AppHandle, Emitter};
-mod utils;
-#[path = "audio_processor_cli.rs"]
-mod audio_processor;
-mod downloader;
+use std::{string::String, sync::Mutex};
+mod audio_decoder;
 mod commands;
-
-#[derive(Clone, Serialize)]
-struct ProcessEvent {
-    event: String,
-    step: String,
-    count: Option<u32>,
-}
-
-#[tauri::command]
-async fn detect_gpu() -> Result<String, String> {
-    let backend = utils::detect_gpu();
-    Ok(backend.to_string())
-}
-
-#[tauri::command]
-async fn process_audio_file(app: AppHandle, file_path: String, whisper_model: &str) -> Result<String, String> {
-    let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
-        app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
-    });
-    let processor = audio_processor::AudioProcessor::new(
-        emit,
-        file_path,
-        whisper_model.to_string()
-    );
-    Ok(processor.process())
-}
-
-#[tauri::command]
-async fn ensure_default_models(app: AppHandle, file_path: String, whisper_model: &str) -> Result<String, String> {
-    let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
-        app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
-    });
-    let processor = audio_processor::AudioProcessor::new(
-        emit,
-        file_path,
-        whisper_model.to_string()
-    );
-    Ok(processor.ensure_default_models())
-}
-
-#[tauri::command]
-async fn download_audio(app: AppHandle, audio_url: String) -> Result<downloader::DownloadResult, String> {
-    let emit: Arc<dyn Fn(&str, &str,  Option<u32>) + Send + Sync> = Arc::new(move |event: &str, step: &str, count: Option<u32>| {
-        app.emit("process", ProcessEvent { event: event.into(), step: step.into(), count }).unwrap();
-    });
-    let downloader = downloader::DownloaderProcessor::new(
-        emit,
-        audio_url
-    );
-    tauri::async_runtime::spawn_blocking(move || downloader.download())
-        .await
-        .map_err(|e| e.to_string())
-}
-
-
-#[tauri::command]
-async fn save_text_file(path: String, contents: String) -> Result<String, String> {
-    std::fs::write(&path, contents).map_err(|e| e.to_string())?;
-    Ok("Saved".to_string())
-}
+mod downloader;
+mod gpu;
+mod models;
+mod settings;
+mod transcript_processor;
+mod utils;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(Mutex::new(settings::load()))
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
-            detect_gpu,
-            process_audio_file,
-            ensure_default_models,
-            download_audio,
-            save_text_file,
+            commands::files::save_text_file,
+            commands::system::get_gpus,
+            commands::transcript::process_audio_file,
+            commands::transcript::get_transcription_params,
+            commands::downloader::download_audio,
             commands::settings::get_models,
-            commands::settings::delete_model
+            commands::settings::delete_model,
+            commands::settings::ensure_default_models,
+            commands::settings::get_settings,
+            commands::settings::save_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

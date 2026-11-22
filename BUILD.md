@@ -90,7 +90,7 @@ The Windows script also removes `ggml_backend_load_all()` from `whisper-cli` (ot
 
 ## GPU at runtime (Windows/Linux)
 
-- The app runs `whisper-cli-vulkan` first; if it fails or reports no device it falls back to `whisper-cli` (CPU) for the rest of the session.
-- `BSTT_DISABLE_GPU=1` forces CPU.
+- With "Aceleración por hardware" enabled in Settings and a Vulkan device detected, the app runs `whisper-cli-vulkan`; if it fails or reports no device it falls back to `whisper-cli` (CPU) for the rest of the session.
+- Disabling "Aceleración por hardware" forces CPU.
 - **Integrated AMD GPU on Windows**: the driver exposes only the BIOS-reserved VRAM (usually 512 MB) as GPU memory, so `large-v3-turbo` (1.6 GB) runs mostly from system RAM and is barely faster than CPU. Same machine on Linux (RADV) is ~3x faster. Use a q8_0 model, or raise "UMA Frame Buffer Size" in the BIOS if available.
 - Diagnose with `vulkaninfo` (memory heaps) and the `whisper_print_timings` block of `whisper-cli`.

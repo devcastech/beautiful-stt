@@ -9,6 +9,7 @@ import {
 import { VIEWS, useView } from "../../hooks/useView";
 import { getModelList, ModelInfo } from "../../services/getModels";
 import { ModelsList } from "./components/ModelsList";
+import { PerformanceSettings } from "./components/PerformanceSettings";
 
 const TABS = {
   PERFORMANCE: "performance",
@@ -52,10 +53,7 @@ export const Settings = () => {
     >
       <Activity mode={tab === TABS.PERFORMANCE ? "visible" : "hidden"}>
         <TabPanel idBase={ID_BASE} value={TABS.PERFORMANCE}>
-          <div className="bg-surface rounded-3xl px-6 py-12 flex flex-col items-center gap-2 text-center text-muted">
-            <Gauge size={22} strokeWidth={1.5} aria-hidden="true" />
-            <p className="text-sm">Próximamente</p>
-          </div>
+          <PerformanceSettings models={models} />
         </TabPanel>
       </Activity>
       <Activity mode={tab === TABS.MODELS ? "visible" : "hidden"}>

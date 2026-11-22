@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "../lib/utils";
+import { InfoTooltip } from "./InfoTooltip";
 
 export type SelectOption = {
   value: string;
@@ -21,6 +22,7 @@ export type SelectOption = {
 
 type SelectProps = {
   label: string;
+  hint?: ReactNode;
   options: SelectOption[];
   value: string;
   onChange: (value: string) => void;
@@ -35,6 +37,7 @@ type SelectProps = {
  */
 export const Select = ({
   label,
+  hint,
   options,
   value,
   onChange,
@@ -103,12 +106,16 @@ export const Select = ({
 
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
-      <span
-        id={labelId}
-        className="text-xs font-medium text-muted"
-      >
-        {label}
-      </span>
+      <div className="flex items-center gap-1.5">
+        <span id={labelId} className="text-xs font-medium text-muted">
+          {label}
+        </span>
+        {hint && (
+          <InfoTooltip label={`Más información sobre ${label}`}>
+            {hint}
+          </InfoTooltip>
+        )}
+      </div>
 
       <div className="relative">
         <div
