@@ -19,9 +19,9 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             commands::files::save_text_file,
-            commands::system::detect_gpu,
             commands::system::get_gpus,
             commands::transcript::process_audio_file,
+            commands::transcript::get_transcription_params,
             commands::downloader::download_audio,
             commands::settings::get_models,
             commands::settings::delete_model,

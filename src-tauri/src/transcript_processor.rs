@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::{fs::File, time::Instant};
 use crate::audio_decoder;
+use crate::settings::AppSettings;
 use crate::utils::EmitType;
 
 
@@ -21,6 +22,49 @@ pub struct TranscriptSegment {
 pub struct TranscriptionResult {
     pub text: String,
     pub segments: Vec<TranscriptSegment>,
+}
+
+#[cfg_attr(not(any(target_os = "linux", target_os = "windows")), allow(dead_code))]
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum Device {
+    Cpu,
+    Gpu { name: Option<String> },
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TranscriptionParams {
+    pub model: String,
+    pub device: Device,
+    pub beam_size: u8,
+    pub threads: usize,
+    pub vad: bool,
+}
+
+impl TranscriptionParams {
+    pub fn resolve(settings: &AppSettings, model: &str) -> Self {
+        Self::for_device(settings, model, default_device(settings))
+    }
+
+    fn for_device(settings: &AppSettings, model: &str, device: Device) -> Self {
+        let auto_beam_size = match device {
+            Device::Gpu { .. } => 5,
+            Device::Cpu => 2,
+        };
+        Self {
+            model: model.to_string(),
+            beam_size: settings.beam_size.unwrap_or(auto_beam_size),
+            threads: available_threads(),
+            vad: settings.vad,
+            device,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TranscriptionOutput {
+    pub text: String,
+    pub params: Option<TranscriptionParams>,
 }
 
 #[derive(Deserialize)]
@@ -56,18 +100,25 @@ pub struct TranscriptProcessor {
     emit: EmitType,
     file_path: String,
     whisper_model: String,
+    settings: AppSettings,
 }
 
 impl TranscriptProcessor {
-    pub fn new(emit: EmitType, file_path: String, whisper_model: String) -> Self {
+    pub fn new(
+        emit: EmitType,
+        file_path: String,
+        whisper_model: String,
+        settings: AppSettings,
+    ) -> Self {
         TranscriptProcessor {
             emit,
             file_path,
             whisper_model,
+            settings,
         }
     }
 
-    pub fn process(&self) -> String {
+    pub fn process(&self) -> TranscriptionOutput {
         println!(
             "[STT] process() start — file={} model={}",
             self.file_path, self.whisper_model
@@ -80,20 +131,16 @@ impl TranscriptProcessor {
         if let Err(e) = self.ensure_model(&self.whisper_model) {
             println!("[STT] ensure_model failed: {}", e);
             (self.emit)("process", "hubo un error descargando el modelo", None);
-            return format!("failed to ensure model: {}", e);
+            return TranscriptionOutput {
+                text: format!("failed to ensure model: {}", e),
+                params: None,
+            };
         }
 
-        let vad_path = match self.ensure_vad_model() {
-            Ok(path) => Some(path),
-            Err(e) => {
-                println!("VAD model not available, proceeding without VAD: {}", e);
-                (self.emit)(
-                    "process",
-                    "VAD no disponible, continuando sin filtro de voz",
-                    None,
-                );
-                None
-            }
+        let vad_path = if self.settings.vad {
+            self.ensure_vad_model_or_warn()
+        } else {
+            None
         };
 
         let total = Instant::now();
@@ -124,14 +171,17 @@ impl TranscriptProcessor {
                         &format!("Error decodificando audio: {}", e),
                         None,
                     );
-                    return format!("error: {}", e);
+                    return TranscriptionOutput {
+                        text: format!("error: {}", e),
+                        params: None,
+                    };
                 }
             }
         };
 
         println!("[STT] calling transcribe with audio_path={}", audio_path);
         (self.emit)("process", "iniciando transcripción", None);
-        let transcription = self.transcribe(&audio_path, vad_path.as_deref());
+        let (transcription, params) = self.transcribe(&audio_path, vad_path.as_deref());
         if let Some(p) = temp_wav {
             let _ = std::fs::remove_file(p);
         }
@@ -146,7 +196,10 @@ impl TranscriptProcessor {
             &format!("Proceso completado en {:?} segundos", elapsed),
             None,
         );
-        transcription.text
+        TranscriptionOutput {
+            text: transcription.text,
+            params: Some(params),
+        }
     }
 
     pub fn get_whisper_bin_path(&self) -> std::path::PathBuf {
@@ -293,6 +346,21 @@ impl TranscriptProcessor {
         Ok(vad_path)
     }
 
+    fn ensure_vad_model_or_warn(&self) -> Option<std::path::PathBuf> {
+        match self.ensure_vad_model() {
+            Ok(path) => Some(path),
+            Err(e) => {
+                println!("VAD model not available, proceeding without VAD: {}", e);
+                (self.emit)(
+                    "process",
+                    "VAD no disponible, continuando sin filtro de voz",
+                    None,
+                );
+                None
+            }
+        }
+    }
+
     pub fn ensure_default_models(&self) -> String {
         println!(
             "[STT] ensure_default_models() start — file={} model={}",
@@ -304,18 +372,9 @@ impl TranscriptProcessor {
             return format!("failed to ensure model: {}", e);
         }
 
-        let _vad_path = match self.ensure_vad_model() {
-            Ok(path) => Some(path),
-            Err(e) => {
-                println!("VAD model not available, proceeding without VAD: {}", e);
-                (self.emit)(
-                    "process",
-                    "VAD no disponible, continuando sin filtro de voz",
-                    None,
-                );
-                None
-            }
-        };
+        if self.settings.vad {
+            self.ensure_vad_model_or_warn();
+        }
         (self.emit)("process", "", None);
 
         String::from("Success")
@@ -345,30 +404,44 @@ impl TranscriptProcessor {
         &self,
         file_path: &str,
         vad_model_path: Option<&std::path::Path>,
-    ) -> TranscriptionResult {
+    ) -> (TranscriptionResult, TranscriptionParams) {
+        let mut params = TranscriptionParams::resolve(&self.settings, &self.whisper_model);
+        params.vad = vad_model_path.is_some();
+
         #[cfg(any(target_os = "linux", target_os = "windows"))]
         {
-            if let Some(vulkan_bin) = self.get_vulkan_bin_path() {
-                (self.emit)("process", "iniciando transcripción con GPU (Vulkan)", None);
-                match self.run_whisper(&vulkan_bin, file_path, vad_model_path) {
-                    Ok(run) if run.success => {
-                        if !run.used_gpu {
-                            VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
+            if matches!(params.device, Device::Gpu { .. }) {
+                if let Some(vulkan_bin) = vulkan_bin_path() {
+                    (self.emit)("process", "iniciando transcripción con GPU (Vulkan)", None);
+                    match self.run_whisper(&vulkan_bin, file_path, vad_model_path, &params) {
+                        Ok(run) if run.success => {
+                            println!("[STT] vulkan run ok, used_gpu={}", run.used_gpu);
+                            if !run.used_gpu {
+                                VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
+                                params.device = Device::Cpu;
+                            }
+                            return (run.result, params);
                         }
-                        println!("[STT] vulkan run ok, used_gpu={}", run.used_gpu);
-                        return run.result;
-                    }
-                    _ => {
-                        VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
-                        (self.emit)("transcript_reset", "", None);
-                        (self.emit)("process", "GPU no disponible, usando CPU", None);
+                        _ => {
+                            VULKAN_UNAVAILABLE.store(true, Ordering::Relaxed);
+                            (self.emit)("transcript_reset", "", None);
+                            (self.emit)("process", "GPU no disponible, usando CPU", None);
+                        }
                     }
                 }
+                params = TranscriptionParams {
+                    vad: params.vad,
+                    ..TranscriptionParams::for_device(
+                        &self.settings,
+                        &self.whisper_model,
+                        Device::Cpu,
+                    )
+                };
             }
         }
 
         let whisper_bin = self.get_whisper_bin_path();
-        match self.run_whisper(&whisper_bin, file_path, vad_model_path) {
+        let result = match self.run_whisper(&whisper_bin, file_path, vad_model_path, &params) {
             Ok(run) => run.result,
             Err(msg) => {
                 (self.emit)("process", &msg, None);
@@ -377,7 +450,8 @@ impl TranscriptProcessor {
                     segments: Vec::new(),
                 }
             }
-        }
+        };
+        (result, params)
     }
 
     fn run_whisper(
@@ -385,6 +459,7 @@ impl TranscriptProcessor {
         whisper_bin: &std::path::Path,
         file_path: &str,
         vad_model_path: Option<&std::path::Path>,
+        params: &TranscriptionParams,
     ) -> Result<WhisperRun, String> {
         let model_path = self.get_model_path(&self.whisper_model);
 
@@ -403,7 +478,14 @@ impl TranscriptProcessor {
         );
 
         let mut cmd = Command::new(whisper_bin);
-        self.build_whisper_cli(&mut cmd, &model_path, file_path, &json_base, vad_model_path);
+        self.build_whisper_cli(
+            &mut cmd,
+            &model_path,
+            file_path,
+            &json_base,
+            vad_model_path,
+            params,
+        );
 
         let mut child = cmd.spawn().map_err(|e| {
             format!(
@@ -497,6 +579,7 @@ impl TranscriptProcessor {
         file_path: &str,
         json_base: &Path,
         vad_model_path: Option<&Path>,
+        params: &TranscriptionParams,
     ) {
         #[cfg(all(target_os = "macos", not(debug_assertions)))]
         {
@@ -516,11 +599,6 @@ impl TranscriptProcessor {
                 cmd.env("DYLD_LIBRARY_PATH", &frameworks_dir);
             }
         }
-        let available_threads = std::thread::available_parallelism()
-            .map(|n| n.get())
-            .unwrap_or(4);
-
-        let beam_size = Self::get_beam_size();
         let language = "es";
         let prompt = "";
         cmd.arg("-m")
@@ -530,9 +608,9 @@ impl TranscriptProcessor {
             .arg("-l")
             .arg(language)
             .arg("-bs")
-            .arg(beam_size)
+            .arg(params.beam_size.to_string())
             .arg("-t")
-            .arg(available_threads.to_string())
+            .arg(params.threads.to_string())
             .arg("--prompt")
             .arg(prompt)
             .arg("-et")
@@ -561,29 +639,45 @@ impl TranscriptProcessor {
         }
     }
 
-    #[cfg(any(target_os = "linux", target_os = "windows"))]
-    fn get_vulkan_bin_path(&self) -> Option<std::path::PathBuf> {
-        if std::env::var_os("BSTT_DISABLE_GPU").is_some()
-            || VULKAN_UNAVAILABLE.load(Ordering::Relaxed)
-        {
-            return None;
-        }
-        let bin_name = if cfg!(target_os = "windows") {
-            "whisper-cli-vulkan.exe"
-        } else {
-            "whisper-cli-vulkan"
-        };
-        let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-        let bin = exe_dir.join(bin_name);
-        bin.exists().then_some(bin)
-    }
+}
 
-    fn get_beam_size() -> &'static str {
-        match crate::utils::detect_gpu() {
-            "CPU" => "2",
-            _ => "5",
-        }
+fn available_threads() -> usize {
+    std::thread::available_parallelism()
+        .map(|n| n.get())
+        .unwrap_or(4)
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn default_device(settings: &AppSettings) -> Device {
+    if !settings.use_gpu
+        || VULKAN_UNAVAILABLE.load(Ordering::Relaxed)
+        || vulkan_bin_path().is_none()
+    {
+        return Device::Cpu;
     }
+    match crate::gpu::gpus().first() {
+        Some(gpu) => Device::Gpu {
+            name: Some(gpu.name.clone()),
+        },
+        None => Device::Cpu,
+    }
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+fn default_device(_settings: &AppSettings) -> Device {
+    Device::Gpu { name: None }
+}
+
+#[cfg(any(target_os = "linux", target_os = "windows"))]
+fn vulkan_bin_path() -> Option<std::path::PathBuf> {
+    let bin_name = if cfg!(target_os = "windows") {
+        "whisper-cli-vulkan.exe"
+    } else {
+        "whisper-cli-vulkan"
+    };
+    let exe_dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
+    let bin = exe_dir.join(bin_name);
+    bin.exists().then_some(bin)
 }
 
 fn parse_whisper_json(json_path: &std::path::Path) -> Vec<TranscriptSegment> {

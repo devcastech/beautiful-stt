@@ -19,20 +19,24 @@ pub async fn delete_model(model: &str) -> Result<String, String> {
 #[tauri::command]
 pub async fn ensure_default_models(
     app: AppHandle,
+    state: State<'_, SettingsState>,
     file_path: String,
     whisper_model: &str,
 ) -> Result<String, String> {
-    let emit = make_emit(app);
+    let settings = settings::current(&state)?;
     //TODO: move models handling to a separate module
-    let processor =
-        transcript_processor::TranscriptProcessor::new(emit, file_path, whisper_model.to_string());
+    let processor = transcript_processor::TranscriptProcessor::new(
+        make_emit(app),
+        file_path,
+        whisper_model.to_string(),
+        settings,
+    );
     Ok(processor.ensure_default_models())
 }
 
 #[tauri::command]
 pub async fn get_settings(state: State<'_, SettingsState>) -> Result<AppSettings, String> {
-    let current = state.lock().map_err(|e| e.to_string())?;
-    Ok(current.clone())
+    settings::current(&state)
 }
 
 #[tauri::command]

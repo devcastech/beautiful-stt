@@ -2,13 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import {
-  Music,
   DownloadCloud,
+  Music,
   Computer,
   Link,
   Plus,
   CloudDownload,
-  Cpu,
 } from "lucide-react";
 import { listen } from "@tauri-apps/api/event";
 import { DisplayTranscript } from "../../components/DisplayTranscript";
@@ -24,6 +23,12 @@ import { ProgressBar } from "../../components/ProgressBar";
 import { VIEWS, useView } from "../../hooks/useView";
 import { cn, formatBytes } from "../../lib/utils";
 import { DownloadSteps } from "./components/DownloadSteps";
+import { TranscriptionParamsCard } from "./components/TranscriptionParamsCard";
+import {
+  TranscriptionParams,
+  getTranscriptionParams,
+  transcribeAudio,
+} from "../../services/transcription";
 
 export type ProcessEvent = {
   event: string;
@@ -63,7 +68,7 @@ export const AudioProcessor = () => {
     useState<ProcessEvent | null>(null);
   const [model, setModel] = useState<string>("");
   const [models, setModels] = useState<ModelInfo[]>([]);
-  const [resourcesUsed, setResourcesUsed] = useState<string>("");
+  const [params, setParams] = useState<TranscriptionParams | null>(null);
   const [audioUrl, setAudioUrl] = useState<string>("");
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<SourceTab>("localFile");
@@ -126,12 +131,9 @@ export const AudioProcessor = () => {
   }, []);
 
   useEffect(() => {
-    async function detectGPU() {
-      const response = await invoke("detect_gpu");
-      setResourcesUsed(response as string);
-    }
-    detectGPU();
-  }, []);
+    if (view !== VIEWS.transcript || !model) return;
+    getTranscriptionParams(model).then(setParams).catch(console.error);
+  }, [view, model]);
 
   const hasStartedEnsureModels = useRef(false);
   useEffect(() => {
@@ -161,16 +163,15 @@ export const AudioProcessor = () => {
   }, [model, refreshModels]);
 
   const processAudioFile = async () => {
+    if (!selectedFilePath) return;
     setIsProcessing(true);
     setResult("");
     setSegments([]);
     setProcessStep(null);
     setProcessDownloadAssetsStep(null);
-    const response = await invoke("process_audio_file", {
-      filePath: selectedFilePath,
-      whisperModel: model,
-    });
-    setResult(response as string);
+    const output = await transcribeAudio(selectedFilePath, model);
+    setResult(output.text);
+    if (output.params) setParams(output.params);
     setIsProcessing(false);
     refreshModels();
   };
@@ -381,21 +382,9 @@ export const AudioProcessor = () => {
                 {isProcessing ? "Procesando..." : "Transcribir"}
               </button>
             )}
-
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {model && (
-                <span className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-elevated text-muted">
-                  {model.replace(".bin", "")}
-                </span>
-              )}
-              {resourcesUsed && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-mono px-2.5 py-1 rounded-full bg-elevated text-muted">
-                  <Cpu size={11} strokeWidth={1.75} aria-hidden="true" />
-                  {resourcesUsed}
-                </span>
-              )}
-            </div>
           </section>
+
+          <TranscriptionParamsCard params={params} />
         </div>
 
         <DisplayTranscript
