@@ -20,7 +20,7 @@ sed -i -E "0,/^version = \"[^\"]+\"/s//version = \"$VERSION\"/" src-tauri/Cargo.
 cargo update --workspace --offline --quiet --manifest-path src-tauri/Cargo.toml
 
 git cliff --unreleased --tag "$TAG" --prepend CHANGELOG.md
-"${EDITOR:-nano}" CHANGELOG.md
+"${EDITOR:-vim}" CHANGELOG.md
 
 read -rp "Commit bump $TAG? [y/N] " ok
 [[ $ok == y ]] || die "Cancelled. Changes left uncommitted."
