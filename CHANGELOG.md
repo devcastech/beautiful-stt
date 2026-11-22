@@ -1,3 +1,30 @@
+## [1.5.0] - 2026-11-22
+
+### 🚀 Features
+
+- *(settings)* Add performance settings panel
+- *(settings)* List detected GPUs
+- *(settings)* Use named precision levels
+- *(transcription)* Apply performance settings
+
+### 🚜 Refactor
+
+- *(tauri)* Reorganize backend modules by domain
+
+### 🎨 Styling
+
+- *(transcript)* Simplify selected file row
+
+### ⚙️ Miscellaneous Tasks
+
+- *(release)* Add release scripts and changelog
+- *(models)* Use commas in model descriptions
+- *(gpu)* Remove redundant comments
+- *(release)* Default to vim in release script
+
+### 💼 Other
+
+- *(deps)* Remove unused llama-cpp-2
 ## [1.4.0] - 2026-11-19
 
 ### 🚀 Features
